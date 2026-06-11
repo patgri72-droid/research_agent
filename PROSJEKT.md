@@ -124,3 +124,5 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 - **Git satt opp:** repo i prosjektroten, `.gitignore` utelater `.env`. Globale standarder:
   `init.defaultBranch=main` + global gitignore (`C:\Users\patgr\.gitignore_global`).
   Fjernet et tomt, feilplassert git-repo som lå i `rapporter/`.
+- **Skylagring (GitHub):** privat repo på https://github.com/patgri72-droid/research_agent
+  (`origin`). Installerte `gh` CLI. Push med `git push`.
