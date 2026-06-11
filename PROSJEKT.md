@@ -113,3 +113,14 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 - Bygget Streamlit-app (`app.py`) + `kjor_app.bat`; installerte `streamlit`, `fpdf2`
 - Historikk-knapper laster lagrede rapporter fra disk uten API-kall
 - Fikset tidsstempel-bug (felles `ts`); reparerte de tre eksisterende historikk-oppføringene
+
+### 2026-06-11
+- **Kostnadsreduksjon:** Analyse- og planleggingsagent flyttet til `claude-sonnet-4-6`
+  (forskningsagenten beholder Opus — der ligger kvaliteten). `web_fetch` begrenset til
+  8000 tokens/henting + maks 8 hentinger; `web_search` maks 10 søk.
+- **Prompt-caching** i forsknings-loopen via `sett_cache_punkt()`: cacher statisk prefiks
+  (system + verktøy) og samtalehistorikk med bevegelig breakpoint. Kutter input-kostnad
+  i den agentiske loopen.
+- **Git satt opp:** repo i prosjektroten, `.gitignore` utelater `.env`. Globale standarder:
+  `init.defaultBranch=main` + global gitignore (`C:\Users\patgr\.gitignore_global`).
+  Fjernet et tomt, feilplassert git-repo som lå i `rapporter/`.
