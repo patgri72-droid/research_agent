@@ -1,0 +1,23 @@
+{
+  "mønstre": [
+    "Forskningsagenten produserte ingen faktisk forskning — rapporten består utelukkende av en forespørsel om avklaring",
+    "Brukerens instruksjon forutsetter en kontekst (et tidligere søk) som ikke eksisterer i samtalen",
+    "Agenten håndterer manglende kontekst konstruktivt ved å tilby eksempler og en metodikk for videre arbeid"
+  ],
+  "nøkkelfakta": [
+    "Det finnes ingen tidligere søk, tema eller hukommelse å bygge videre på",
+    "Ingen notater ble tatt underveis",
+    "Agenten kan ikke utføre oppgaven uten et konkret tema fra brukeren"
+  ],
+  "usikkerhet": [
+    "Det er uklart hva brukeren faktisk ønsket undersøkt — referansen til «det forrige søket» er udefinert",
+    "Mulig at brukeren forveksler denne økten med en tidligere økt i et annet system"
+  ],
+  "kunnskapshull": [
+    "Selve temaet/spørsmålet brukeren ønsker besvart er ukjent",
+    "Ingen data, kilder eller funn foreligger overhodet",
+    "Brukerens underliggende intensjon og kontekst mangler fullstendig"
+  ],
+  "grunnlag_styrke": "svakt",
+  "sammendrag": "Materialet inneholder ingen forskningsdata — kun en avklaringsforespørsel fra agenten fordi brukerens instruksjon viste til et ikke-eksisterende tidligere søk. Det er dermed ingenting av substans å analysere, og kunnskapsgrunnlaget er fraværende. Hovedfunnet er et rent kontekstgap: agenten mangler både tema, kilder og hukommelse. Neste nødvendige steg er at brukeren oppgir et konkret tema eller spørsmål før noen reell analyse kan gjennomføres."
+}

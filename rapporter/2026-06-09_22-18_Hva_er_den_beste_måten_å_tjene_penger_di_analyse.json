@@ -1,0 +1,39 @@
+{
+  "mønstre": [
+    "Tydelig konvergens på tvers av kildene om at man bør selge kunnskap, ferdigheter og resultater fremfor timer eller fysiske ting",
+    "Gjentakende anbefalt sekvens: start med tjenester for rask kontantstrøm, pakk ekspertise inn i skalerbare digitale produkter, og legg til affiliate/innhold som distribusjon",
+    "AI fremstilles konsekvent som en terskelsenker for produksjon/levering, mens menneskelig strategi, nisje og tillit er det kunder faktisk betaler for",
+    "Spisshet (konkret nisje + konkret resultat) og utholdenhet fremheves som de to konstante suksessfaktorene",
+    "Et generasjonsskifte mot digital inntekt (Gen Z/Gen Alpha) brukes som argument for at markedet vokser",
+    "Skala-vs-hastighet-akse: tjenester = raskest, digitale produkter = skalerbart/passivt, micro-SaaS = mest skalerbart men høyest terskel"
+  ],
+  "nøkkelfakta": [
+    "Tjenester gir raskest kontantstrøm (kontantstrøm fra dag én/uker), digitale produkter høyest margin/skalerbarhet, micro-SaaS mest gjentakende inntekt",
+    "Realistisk erfaringsbasert inntektskurve for tjenester: mnd 1 $0–500, mnd 3 $2000–3000, mnd 6 $4000–6000 (én enkeltkilde)",
+    "De fleste seriøse modeller krever 3–6 måneders konsistent innsats; mange gir opp rundt uke 8",
+    "Affiliate anslås mot $17 mrd globalt forbruk innen 2026; USA-affiliate-drevet salg over $70 mrd årlig; diversifisering utover Amazon gir høyere inntjening per klikk",
+    "Beviste modeller per kildene: UGC, community-monetisering, faceless content, SaaS, social media management, clipping ($200–1500/mnd)",
+    "AI-modellstige fra nybegynner (videoredigering, chatbot, VA) til mellomnivå (workflow-konsulering, CRM-automatisering, micro-SaaS); system-prompts/playbooks kan lisensieres som ny IP",
+    "Etablerte plattformer reduserer teknisk terskel: Teachable/Thinkific, Gumroad, Etsy, Whop"
+  ],
+  "usikkerhet": [
+    "Alle seks kildene er kommersielle innholdsskapere, blogger eller plattformer (Whop, Dan Martell, Amasty, Medium-skribent) med egeninteresse i å selge kurs, verktøy eller tjenester — ingen uavhengige eller akademiske kilder",
+    "Inntektstallene er erfaringsbaserte eksempler fra enkeltskapere, ikke verifiserte data eller representative gjennomsnitt — rapporten flagger dette selv",
+    "Markedstallene for affiliate ($17 mrd / $70 mrd) mangler kontekst om metode, definisjon og hvorvidt 'globalt forbruk' og 'salg' er sammenlignbare størrelser",
+    "Påstanden om at 'de fleste gir opp i uke 8, rett før det fungerer' er en overlevelsesbias-fortelling fra én Medium-kilde uten datagrunnlag",
+    "Statistikken om Gen Z/Gen Alpha (halvparten har sidegesjefter / vil forlate jobber) kommer kun fra Whop, en aktør som tjener på denne trenden",
+    "Begrepet 'beste' er aldri operasjonalisert — kildene blander hastighet, skalerbarhet, risiko og passivitet uten felles målestokk"
+  ],
+  "kunnskapshull": [
+    "Ingen data om faktisk feilrate/suksessrate — hvor stor andel som faktisk når de oppgitte inntektsnivåene er ukjent",
+    "Mangler informasjon om markedsmetning og økende konkurranse i 2026 (særlig når AI senker terskelen for alle samtidig)",
+    "Ingen drøfting av juridiske, skattemessige eller regulatoriske forhold (norsk kontekst, mva, plattformavgifter, AI-opphavsrett)",
+    "Lite om kapital- og tidskostnad reelt: hva koster verktøy, annonsering og kundeanskaffelse netto?",
+    "Ingen uavhengige tredjepartskilder (bransjerapporter, statistikkbyråer, akademiske studier) for å verifisere trender og tall",
+    "Mangler analyse av plattformrisiko/avhengighet (algoritmeendringer, kontosperring, prisendringer hos Whop/Etsy/Amazon)",
+    "Ingen vurdering av hvordan AI-mettet innhold kan redusere verdien av nettopp de AI-assisterte tjenestene som anbefales",
+    "Geografisk skjevhet: tall og eksempler er USA-sentrerte, ikke validert for norsk/europeisk marked"
+  ],
+  "grunnlag_styrke": "svakt",
+  "sammendrag": "Materialet gir en sammenhengende og intuitivt fornuftig narrativ: selg resultater og kunnskap, start med tjenester for kontantstrøm og bygg deretter skalerbare digitale produkter og micro-SaaS, med AI som verktøy og spisshet/utholdenhet som suksessfaktorer. Konvergensen mellom kildene er imidlertid delvis illusorisk, fordi alle seks er kommersielle aktører (plattformer, coacher, bloggere) med egeninteresse i konklusjonen, og det finnes ingen uavhengige eller akademiske kilder. Konkrete tall — både inntektskurver og markedsstørrelser — er enten anekdotiske eller mangler metodisk kontekst, og påstander om suksess lider av overlevelsesbias. De praktiske rådene har verdi som hypoteser, men kunnskapsgrunnlaget er for tynt og for partsfarget til å støtte sterke beslutninger uten supplerende, uavhengig research og vurdering av norsk kontekst, konkurranse og plattformrisiko."
+}

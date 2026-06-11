@@ -1,0 +1,34 @@
+[
+  {
+    "dato": "2026-06-09T22:03:43.854818",
+    "tema": "Hva er den beste måten å tjene penger digitalt uten å lage et fysiskt produkt i 2026.",
+    "filer": {
+      "research_md": "rapporter/2026-06-09_22-02_Hva_er_den_beste_måten_å_tjene_penger_di.md",
+      "research_json": "rapporter/2026-06-09_22-02_Hva_er_den_beste_måten_å_tjene_penger_di.json",
+      "analyse_json": "rapporter/2026-06-09_22-03_Hva_er_den_beste_måten_å_tjene_penger_di_analyse.json",
+      "plan_md": "rapporter/2026-06-09_22-03_Hva_er_den_beste_måten_å_tjene_penger_di_plan.md"
+    }
+  },
+  {
+    "dato": "2026-06-09T22:26:14.613956",
+    "tema": "Hva er den beste måten å tjene penger digitalt uten å lage et fysiskt produkt i 2026.",
+    "filer": {
+      "research_md": "rapporter/2026-06-09_22-24_Hva_er_den_beste_måten_å_tjene_penger_di.md",
+      "research_json": "rapporter/2026-06-09_22-24_Hva_er_den_beste_måten_å_tjene_penger_di.json",
+      "analyse_json": "rapporter/2026-06-09_22-26_Hva_er_den_beste_måten_å_tjene_penger_di_analyse.json",
+      "plan_md": "rapporter/2026-06-09_22-26_Hva_er_den_beste_måten_å_tjene_penger_di_plan.md",
+      "pdf": "rapporter/2026-06-09_22-26_Hva_er_den_beste_måten_å_tjene_penger_di_rapport.pdf"
+    }
+  },
+  {
+    "dato": "2026-06-10T21:37:33.374163",
+    "tema": "Hva er de tre beste plassene å reise for pengene i slutten av juli 2026?",
+    "filer": {
+      "research_md": "rapporter/2026-06-10_21-36_Hva_er_de_tre_beste_plassene_å_reise_for.md",
+      "research_json": "rapporter/2026-06-10_21-36_Hva_er_de_tre_beste_plassene_å_reise_for.json",
+      "analyse_json": "rapporter/2026-06-10_21-37_Hva_er_de_tre_beste_plassene_å_reise_for_analyse.json",
+      "plan_md": "rapporter/2026-06-10_21-37_Hva_er_de_tre_beste_plassene_å_reise_for_plan.md",
+      "pdf": "rapporter/2026-06-10_21-37_Hva_er_de_tre_beste_plassene_å_reise_for_rapport.pdf"
+    }
+  }
+]

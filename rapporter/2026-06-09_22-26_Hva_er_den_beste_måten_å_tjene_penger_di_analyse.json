@@ -1,0 +1,34 @@
+{
+  "mønstre": [
+    "Konsekvent skille mellom tre inntektstyper: tjenestebasert (rask kontantstrøm), produkt/skalerbar (passiv, langsiktig) og lavkapital (affiliate/maler) — flere kilder peker mot samme taksonomi",
+    "AI fungerer gjennomgående som forsterker, ikke som selvstendig inntektskilde; verdien ligger i kombinasjonen AI + menneskelig ekspertise/nisje",
+    "Nisjefokus og validering av etterspørsel fremheves som avgjørende suksessfaktor på tvers av alle modeller",
+    "Sterk og samstemt vekstforventning i creator/digital økonomi (CAGR ~23%), selv om de absolutte tallene spriker",
+    "Tydelig trade-off-mønster: lav barriere = lav margin/rask betaling vs. høy oppbyggingstid = passiv/skalerbar inntekt"
+  ],
+  "nøkkelfakta": [
+    "AI-trening/ekspertfeedback betaler $12-25/t generelt, opptil $200+/t for fagspesialister (jurist, lege, ingeniør)",
+    "Skalerbare modeller (kurs, SaaS, medlemskap) gir høyest langsiktig lønnsomhet men krever 6-12 måneders oppbygging",
+    "Affiliate og digitale maler/e-bøker har nesten ingen oppstartskostnad, men forutsetter et eksisterende publikum med tillit",
+    "Markedsstørrelser 2025: SaaS ~$300B, videostreaming ~$157.71B, e-bøker/lydbøker ~$26.04B",
+    "Rent AI-genererte bilder har ikke opphavsrettsbeskyttelse — juridisk relevant for produktbaserte modeller",
+    "Creator economy anslått til ~$254.4B (2025), forventet ~$313.95B (2026)"
+  ],
+  "usikkerhet": [
+    "Markedstallene for creator economy spriker betydelig: Precedence Research (~$2 084B innen 2035) vs. Goldman Sachs (~$480B innen 2027) — store metodiske forskjeller",
+    "Alle kilder er kommersielle blogger og markedsanalyseaktører (amasty, mercor, fundingsouq) med egeninteresse i å fremme digitale produkter — selektiv/optimistisk fremstilling",
+    "Inntektstall presenteres som veiledende trender, ikke verifiserte gjennomsnitt; ingen data om medianinntekt eller feilrate/andel som lykkes",
+    "Begrepet «best» er udefinert og varierer etter mål (rask vs. passiv vs. lav risiko) — ingen objektiv rangering finnes"
+  ],
+  "kunnskapshull": [
+    "Mangler data om suksessrate og frafall — hvor stor andel faktisk oppnår bærekraftig inntekt i hver modell?",
+    "Ingen informasjon om reell tidsbruk vs. nettoinntekt (timepris etter alle kostnader og ulønnet oppbyggingstid)",
+    "Manglende juridiske/skattemessige hensyn utover AI-opphavsrett (moms, plattformregulering, AI-regulering i EU/2026)",
+    "Ingen primærkilder, akademiske studier eller uavhengige bransjedata — kun sekundære kommersielle artikler",
+    "Ingen geografisk kontekst — tall er trolig USA/globalt, ikke spesifikt for norsk/lokalt marked",
+    "Manglende analyse av metningsgrad og konkurranseutvikling per nisje over tid",
+    "Ingen vurdering av plattformrisiko (avhengighet av YouTube/TikTok/algoritmer/enkeltplattformer)"
+  ],
+  "grunnlag_styrke": "svakt",
+  "sammendrag": "Materialet gir et koherent og intuitivt rammeverk — tre inntektsmodeller med tydelige trade-offs mellom rask kontantstrøm, passiv skalerbarhet og lav kapital — og samstemmer rundt AI som forsterker og nisjefokus som suksessfaktor. Imidlertid hviler hele grunnlaget på fire kommersielle blogg- og markedsanalysekilder med egeninteresse, uten primærdata, uavhengig verifikasjon eller informasjon om suksessrater og medianinntekter. Markedstallene spriker kraftig (f.eks. creator economy-prognoser), noe som svekker tilliten til de kvantitative påstandene. Konklusjonen er fornuftig som strategisk prinsipp, men bør behandles som veiledende hypoteser, ikke dokumentert sannhet. For en reell beslutning kreves data om faktisk lønnsomhet, frafall og lokale juridiske/markedsmessige forhold."
+}
