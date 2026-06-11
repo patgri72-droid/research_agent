@@ -124,6 +124,27 @@ def lagre_resultater(tema: str, rapport: str, notat_liste: list, tidsstempel: st
 
     return f"{base}.md", f"{base}.json"
 
+# --- Prompt-caching ---
+
+def sett_cache_punkt(meldinger: list):
+    """Flytter cache-breakpoint til siste melding så samtalehistorikken
+    gjenbrukes billig i hver loop-runde. Fjerner gamle breakpoints først
+    (API-et tillater maks 4)."""
+    for m in meldinger:
+        innhold = m["content"]
+        if isinstance(innhold, list):
+            for blokk in innhold:
+                if isinstance(blokk, dict):
+                    blokk.pop("cache_control", None)
+
+    siste = meldinger[-1]
+    innhold = siste["content"]
+    if isinstance(innhold, str):
+        siste["content"] = [{"type": "text", "text": innhold,
+                             "cache_control": {"type": "ephemeral"}}]
+    elif isinstance(innhold, list) and innhold and isinstance(innhold[-1], dict):
+        innhold[-1]["cache_control"] = {"type": "ephemeral"}
+
 # --- Agenløkken ---
 
 def kjor_research(tema: str, tidsstempel: str = None) -> dict:
@@ -136,12 +157,17 @@ def kjor_research(tema: str, tidsstempel: str = None) -> dict:
     endelig_rapport = ""
     container_id = None  # Brukes av web_search sin interne kode-eksekvering
 
+    # Statisk prefiks (system + verktøy) caches på tvers av alle runder
+    system_blokker = [{"type": "text", "text": SYSTEM_PROMPT,
+                       "cache_control": {"type": "ephemeral"}}]
+
     while True:
+        sett_cache_punkt(meldinger)
         kall_kwargs = dict(
             model="claude-opus-4-8",
             max_tokens=16000,
             thinking={"type": "adaptive"},
-            system=SYSTEM_PROMPT,
+            system=system_blokker,
             tools=VERKTOY,
             messages=meldinger,
         )
