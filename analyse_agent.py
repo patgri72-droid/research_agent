@@ -3,22 +3,16 @@ import json
 import os
 from dotenv import load_dotenv
 
+from config import AgentConfig, STANDARD_CONFIG
+
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-SYSTEM_PROMPT = """Du er en ekspert analytiker. Du får rådata fra en forskningsagent og skal analysere det kritisk.
 
-Din oppgave:
-1. Identifiser de viktigste mønstrene og tendensene i dataene
-2. Trekk frem nøkkelfakta som er relevante for beslutninger
-3. Pek ut motstridende informasjon eller lav troverdighet
-4. Identifiser kunnskapshull — hva vet vi IKKE?
-5. Vurder styrken i grunnlaget (sterkt/middels/svakt)
-
-Vær kritisk og objektiv. Ikke gjenta bare det som ble funnet — analyser og vurder."""
-
-def kjor_analyse(research_data: dict) -> dict:
+def kjor_analyse(research_data: dict, config: AgentConfig = None) -> dict:
+    if config is None:
+        config = STANDARD_CONFIG
     tema = research_data.get("tema", "")
     rapport = research_data.get("rapport", "")
     notat_liste = research_data.get("notater", [])
@@ -40,10 +34,10 @@ Gjennomfør en grundig analyse av dette materialet."""
     print(f"  Analyseagent kjører...")
 
     respons = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8000,
+        model=config.analyse_modell,
+        max_tokens=config.analyse_max_tokens,
         thinking={"type": "adaptive"},
-        system=SYSTEM_PROMPT,
+        system=config.analyse_prompt,
         messages=[{"role": "user", "content": innhold}],
         output_config={
             "format": {

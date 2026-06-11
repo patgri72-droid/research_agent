@@ -5,7 +5,7 @@ forskningsrapport med kritisk analyse og konkret handlingsplan, lagret som
 Markdown, JSON og PDF. Kan kjøres som CLI eller via et Streamlit nettleser-grensesnitt.
 
 **Plassering:** `c:\Users\patgr\research_agent\`
-**Modell:** `claude-opus-4-8` (alle tre agenter)
+**Modell:** Konfigurerbar per agent i nettsiden (standard: Opus 4.8 for research, Sonnet 4.6 for analyse/plan)
 
 ---
 
@@ -29,9 +29,14 @@ Tema → Forskningsagent → Analyseagent → Planleggingsagent → Lagring (md/
 
 | Fil | Rolle |
 |-----|-------|
+| `config.py` | `AgentConfig` (dataclass) + `MODELLER` + standard-prompts. Ett sted for all agent-styring. |
 | `research_agent.py` | Forskningsagent. Agentisk løkke med verktøy. Tidligere `agent.py` (omdøpt). |
 | `analyse_agent.py` | Analyseagent. Strukturert JSON via `output_config` json_schema. |
 | `planlegging_agent.py` | Planleggingsagent. Streamer plan-tekst. |
+| `linkedin_agent.py` | LinkedIn-agent. Leser prosjektlogg + git + `claude_logg/`, skriver tospråklig post m/ bilde-prompter via json_schema. Frittstående (ikke i `run.py`-kjeden). |
+| `kjor_linkedin.bat` | Launcher for LinkedIn-agenten. |
+| `claude_logg/` | Slipp `.md`/`.txt`-notater fra Claude-økter her — råmateriale for poster. |
+| `linkedin/` | Output: `{ts}_{tittel}.md` (ferdig post + bilde-prompter) og `.json`. |
 | `run.py` | CLI-orkestrator. Kjeder agentene, historikk, lagring, total kjøretid. |
 | `app.py` | Streamlit nettleser-grensesnitt. |
 | `pdf_generator.py` | Genererer formatert PDF (`RapportPDF` som utvider FPDF). |
@@ -69,6 +74,9 @@ Streamlit-appen kjører kun lokalt — ingen kostnad utover API-kall. Lukk termi
 - PDF-nedlastingsknapp
 - Sidepanel med tidligere søk — **klikk laster lagret rapport fra disk uten API-kall**
   (funksjon `last_lagret_resultat`). Bra for gratis testing av grensesnittet.
+- **Innstillingspanel** i sidepanelet (`bygg_config_panel`): modellvalg per agent, søke-/hentegrenser,
+  token-grenser, av/på for analyse- og planleggingstrinn, og redigerbare system-prompts.
+  Bygger en `AgentConfig` som sendes inn i agentene. Avskrudde trinn hopper over fane + fil + PDF-seksjon.
 
 ---
 
@@ -114,6 +122,17 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 - Historikk-knapper laster lagrede rapporter fra disk uten API-kall
 - Fikset tidsstempel-bug (felles `ts`); reparerte de tre eksisterende historikk-oppføringene
 
+### 2026-06-11 (senere — styringsgrensesnitt fase 1)
+- **`config.py` lagt til:** `AgentConfig`-dataclass samler all agent-styring (modeller, token-grenser,
+  søke-/hentegrenser, av/på-trinn, system-prompts). Standardverdier = uendret oppførsel.
+- **Agentene tar nå `config`:** `kjor_research/analyse/planlegging(... , config)`. Verktøylista bygges
+  fra config (`bygg_verktoy`). Hardkodede modeller/prompts/grenser fjernet fra agent-filene.
+- **Innstillingspanel i `app.py`** (`bygg_config_panel`) — styr alt fra nettsiden uten å redigere kode.
+- **Valgfrie trinn:** analyse/plan kan skrus av. `lagre_alt` + `generer_pdf` hopper over manglende
+  deler; visningen bygger bare fanene som har innhold. Plan tvinges av hvis analyse er av (`__post_init__`).
+- Fikset tomt-label-varsel på søkefeltet (`"Tema"` + `label_visibility="collapsed"`).
+- Testet med Streamlit `AppTest` (headless) — ingen runtime-feil, alle widgets rendrer.
+
 ### 2026-06-11
 - **Kostnadsreduksjon:** Analyse- og planleggingsagent flyttet til `claude-sonnet-4-6`
   (forskningsagenten beholder Opus — der ligger kvaliteten). `web_fetch` begrenset til
@@ -126,3 +145,12 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
   Fjernet et tomt, feilplassert git-repo som lå i `rapporter/`.
 - **Skylagring (GitHub):** privat repo på https://github.com/patgri72-droid/research_agent
   (`origin`). Installerte `gh` CLI. Push med `git push`.
+- **LinkedIn-agent (`linkedin_agent.py`):** ny, frittstående agent som lager LinkedIn-poster
+  om vibe-coding-reisen. Leser råmateriale fra prosjektloggen, nylige git-commits og
+  `.md`/`.txt`-notater i `claude_logg/`. Tar en *vinkling* + en *stilbeskrivelse*
+  (`linkedin_stil` i config — den viktigste knappen for stemmen). Strukturert output via
+  json_schema (post_norsk, post_engelsk, bilde_prompter, skjermbilde_forslag, hashtags).
+  Tospråklig som standard (norsk øverst, skille, engelsk under); `linkedin_sprak` kan settes
+  til `"norsk"` eller `"engelsk"`. Lagrer ferdig post + bilde-prompter i `linkedin/`.
+  Kjør: `.\kjor_linkedin.bat "vinkling"`. Windows-merknad: `sys.stdout.reconfigure("utf-8")`
+  i `__main__` så emoji ikke kveler cp1252-konsollen (filer skrives uansett UTF-8).

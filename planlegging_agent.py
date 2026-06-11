@@ -3,22 +3,17 @@ import json
 import os
 from dotenv import load_dotenv
 
+from config import AgentConfig, STANDARD_CONFIG
+
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-SYSTEM_PROMPT = """Du er en ekspert planlegger. Du får research-data og en analyse fra spesialiserte agenter.
 
-Din oppgave er å lage en KONKRET, HANDLINGSORIENTERT plan:
-1. Prioriter tiltak etter effekt og gjennomførbarhet (høy/middels/lav)
-2. Angi realistiske tidsestimater per steg
-3. Adresser risikofaktorer fra analysen eksplisitt
-4. Fyll eventuelle kunnskapshull med anbefalinger om videre undersøkelse
-5. Vær spesifikk — ikke generelle råd
-
-Planens kvalitet avhenger av at den er direkte forankret i research-funnene og analysen."""
-
-def kjor_planlegging(research_data: dict, analyse_data: dict) -> str:
+def kjor_planlegging(research_data: dict, analyse_data: dict,
+                     config: AgentConfig = None) -> str:
+    if config is None:
+        config = STANDARD_CONFIG
     tema = research_data.get("tema", "")
 
     innhold = f"""Tema: {tema}
@@ -45,10 +40,10 @@ Lag en konkret handlingsplan basert på dette grunnlaget."""
 
     plan = ""
     with client.messages.stream(
-        model="claude-sonnet-4-6",
-        max_tokens=8000,
+        model=config.plan_modell,
+        max_tokens=config.plan_max_tokens,
         thinking={"type": "adaptive"},
-        system=SYSTEM_PROMPT,
+        system=config.plan_prompt,
         messages=[{"role": "user", "content": innhold}],
     ) as stream:
         for tekst in stream.text_stream:

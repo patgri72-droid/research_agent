@@ -63,40 +63,45 @@ def velg_tema(siste: list) -> str:
     return raw
 
 
-def lagre_alt(tema: str, research: dict, analyse: dict, plan: str, ts: str = None) -> dict:
+def lagre_alt(tema: str, research: dict, analyse: dict = None,
+              plan: str = None, ts: str = None) -> dict:
     os.makedirs("rapporter", exist_ok=True)
     if ts is None:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
     base = f"rapporter/{ts}_{tema[:40].replace(' ', '_')}"
 
-    with open(f"{base}_analyse.json", "w", encoding="utf-8") as f:
-        json.dump(analyse, f, ensure_ascii=False, indent=2)
-
-    with open(f"{base}_plan.md", "w", encoding="utf-8") as f:
-        f.write(f"# Handlingsplan: {tema}\n\n")
-        f.write(f"*Generert: {datetime.now().strftime('%d.%m.%Y %H:%M')}*\n\n")
-        f.write("---\n\n")
-        f.write(f"**Grunnlagsstyrke:** {analyse.get('grunnlag_styrke', 'ukjent')}\n\n")
-        f.write(f"**Analytisk vurdering:** {analyse.get('sammendrag', '')}\n\n")
-        f.write("---\n\n")
-        f.write(plan)
-
-    pdf_path = f"{base}_rapport.pdf"
-    generer_pdf(tema, research, analyse, plan, pdf_path)
-
     filer = {
         "research_md": research.get("md_fil", f"{base}.md"),
         "research_json": research.get("json_fil", f"{base}.json"),
-        "analyse_json": f"{base}_analyse.json",
-        "plan_md": f"{base}_plan.md",
-        "pdf": pdf_path,
     }
+
+    if analyse:
+        with open(f"{base}_analyse.json", "w", encoding="utf-8") as f:
+            json.dump(analyse, f, ensure_ascii=False, indent=2)
+        filer["analyse_json"] = f"{base}_analyse.json"
+
+    if plan:
+        with open(f"{base}_plan.md", "w", encoding="utf-8") as f:
+            f.write(f"# Handlingsplan: {tema}\n\n")
+            f.write(f"*Generert: {datetime.now().strftime('%d.%m.%Y %H:%M')}*\n\n")
+            f.write("---\n\n")
+            f.write(f"**Grunnlagsstyrke:** {analyse.get('grunnlag_styrke', 'ukjent')}\n\n")
+            f.write(f"**Analytisk vurdering:** {analyse.get('sammendrag', '')}\n\n")
+            f.write("---\n\n")
+            f.write(plan)
+        filer["plan_md"] = f"{base}_plan.md"
+
+    pdf_path = f"{base}_rapport.pdf"
+    generer_pdf(tema, research, analyse, plan, pdf_path)
+    filer["pdf"] = pdf_path
 
     print(f"\nLagret:")
     print(f"  PDF:       {pdf_path}")
     print(f"  Research:  {base}.md / .json")
-    print(f"  Analyse:   {base}_analyse.json")
-    print(f"  Plan:      {base}_plan.md")
+    if analyse:
+        print(f"  Analyse:   {base}_analyse.json")
+    if plan:
+        print(f"  Plan:      {base}_plan.md")
 
     return filer
 

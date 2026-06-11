@@ -135,7 +135,10 @@ class RapportPDF(FPDF):
         self.ln(3)
 
 
-def generer_pdf(tema: str, research: dict, analyse: dict, plan: str, output_path: str) -> str:
+def generer_pdf(tema: str, research: dict, analyse: dict = None,
+                plan: str = None, output_path: str = None) -> str:
+    """Bygger PDF-en. Analyse- og handlingsplan-seksjonene tas bare med
+    hvis de finnes (de kan være avskrudd i konfigurasjonen)."""
     dato = datetime.now().strftime("%d.%m.%Y %H:%M")
     pdf = RapportPDF(tema)
 
@@ -146,24 +149,26 @@ def generer_pdf(tema: str, research: dict, analyse: dict, plan: str, output_path
     pdf.seksjons_tittel("Forskningsrapport")
     pdf.skriv_markdown(research.get("rapport", ""))
 
-    # Analyse
-    pdf.seksjons_tittel("Analyse")
-    pdf.fargede_punkter("Mønstre og tendenser", analyse.get("mønstre", []), FARGE_BLA)
-    pdf.fargede_punkter("Nøkkelfakta", analyse.get("nøkkelfakta", []), FARGE_GRON)
-    pdf.fargede_punkter("Usikkerhet og risiko", analyse.get("usikkerhet", []), FARGE_ROD)
-    pdf.fargede_punkter("Kunnskapshull", analyse.get("kunnskapshull", []), FARGE_LILLA)
+    # Analyse (valgfri)
+    if analyse:
+        pdf.seksjons_tittel("Analyse")
+        pdf.fargede_punkter("Mønstre og tendenser", analyse.get("mønstre", []), FARGE_BLA)
+        pdf.fargede_punkter("Nøkkelfakta", analyse.get("nøkkelfakta", []), FARGE_GRON)
+        pdf.fargede_punkter("Usikkerhet og risiko", analyse.get("usikkerhet", []), FARGE_ROD)
+        pdf.fargede_punkter("Kunnskapshull", analyse.get("kunnskapshull", []), FARGE_LILLA)
 
-    styrke = analyse.get("grunnlag_styrke", "ukjent").upper()
-    pdf.set_font(FONT, "B", 10)
-    pdf.set_text_color(*FARGE_MRK_BLA)
-    pdf.cell(0, 6, f"Grunnlagsstyrke: {styrke}", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(FONT, "I", 10)
-    pdf.set_text_color(40, 40, 40)
-    pdf.multi_cell(0, 5, analyse.get("sammendrag", ""))
+        styrke = analyse.get("grunnlag_styrke", "ukjent").upper()
+        pdf.set_font(FONT, "B", 10)
+        pdf.set_text_color(*FARGE_MRK_BLA)
+        pdf.cell(0, 6, f"Grunnlagsstyrke: {styrke}", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font(FONT, "I", 10)
+        pdf.set_text_color(40, 40, 40)
+        pdf.multi_cell(0, 5, analyse.get("sammendrag", ""))
 
-    # Handlingsplan
-    pdf.seksjons_tittel("Handlingsplan")
-    pdf.skriv_markdown(plan)
+    # Handlingsplan (valgfri)
+    if plan:
+        pdf.seksjons_tittel("Handlingsplan")
+        pdf.skriv_markdown(plan)
 
     pdf.output(output_path)
     return output_path

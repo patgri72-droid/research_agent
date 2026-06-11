@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
+from config import AgentConfig, STANDARD_CONFIG
+
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -53,52 +55,31 @@ def kjor_verktoy(navn: str, input_data: dict):
 
 # --- Verktøy tilgjengelig for agenten ---
 
-VERKTOY = [
-    {"type": "web_search_20260209", "name": "web_search", "max_uses": 10},
-    {"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 8, "max_content_tokens": 8000},
-    {
-        "name": "ta_notater",
-        "description": "Lagre et viktig funn, faktum eller konklusjon. Oppgi alltid kildens URL i 'kilde'-feltet.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "notat": {"type": "string", "description": "Funnet eller faktumet du vil huske"},
-                "kilde": {"type": "string", "description": "Full URL til siden du hentet informasjonen fra"},
-            },
-            "required": ["notat", "kilde"],
+# Notat-verktøyet er statisk; web_search/web_fetch bygges fra config.
+NOTAT_VERKTOY = {
+    "name": "ta_notater",
+    "description": "Lagre et viktig funn, faktum eller konklusjon. Oppgi alltid kildens URL i 'kilde'-feltet.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "notat": {"type": "string", "description": "Funnet eller faktumet du vil huske"},
+            "kilde": {"type": "string", "description": "Full URL til siden du hentet informasjonen fra"},
         },
+        "required": ["notat", "kilde"],
     },
-]
+}
 
-SYSTEM_PROMPT = """Du er en avansert forskningsagent. Når du får et tema å undersøke:
 
-1. Del temaet opp i 3-5 konkrete delspørsmål
-2. Søk etter svar på hvert delspørsmål — gjør minst 4-6 søk totalt
-3. Les relevante artikler i sin helhet med web_fetch når du trenger mer dybde
-4. Bruk ta_notater underveis — oppgi ALLTID full URL som kilde
-5. Skriv en strukturert rapport med følgende format:
-
----
-## Sammendrag
-[3-5 setninger som oppsummerer de viktigste funnene]
-
-## [Delspørsmål 1]
-[Funn med in-text sitering, f.eks. ifølge [kilde1]]
-
-## [Delspørsmål 2]
-...
-
-## Konklusjon
-[Helhetlig vurdering]
-
-## Kilder
-- [1] <full URL>
-- [2] <full URL>
-...
----
-
-VIKTIG: Siter kilden direkte i teksten der du bruker informasjonen. Alle URL-er MÅ være med i kildelisten.
-Skriv rapporten på norsk."""
+def bygg_verktoy(config: AgentConfig) -> list:
+    """Setter sammen verktøylista med grensene fra config."""
+    return [
+        {"type": "web_search_20260209", "name": "web_search",
+         "max_uses": config.maks_sok},
+        {"type": "web_fetch_20260209", "name": "web_fetch",
+         "max_uses": config.maks_hentinger,
+         "max_content_tokens": config.hente_token_grense},
+        NOTAT_VERKTOY,
+    ]
 
 # --- Lagre rapport og data ---
 
@@ -147,9 +128,12 @@ def sett_cache_punkt(meldinger: list):
 
 # --- Agenløkken ---
 
-def kjor_research(tema: str, tidsstempel: str = None) -> dict:
+def kjor_research(tema: str, tidsstempel: str = None,
+                  config: AgentConfig = None) -> dict:
     global notater
     notater = []
+    if config is None:
+        config = STANDARD_CONFIG
 
     print(f"  Forskningsagent kjører...")
 
@@ -157,18 +141,20 @@ def kjor_research(tema: str, tidsstempel: str = None) -> dict:
     endelig_rapport = ""
     container_id = None  # Brukes av web_search sin interne kode-eksekvering
 
+    verktoy = bygg_verktoy(config)
+
     # Statisk prefiks (system + verktøy) caches på tvers av alle runder
-    system_blokker = [{"type": "text", "text": SYSTEM_PROMPT,
+    system_blokker = [{"type": "text", "text": config.research_prompt,
                        "cache_control": {"type": "ephemeral"}}]
 
     while True:
         sett_cache_punkt(meldinger)
         kall_kwargs = dict(
-            model="claude-opus-4-8",
-            max_tokens=16000,
+            model=config.research_modell,
+            max_tokens=config.research_max_tokens,
             thinking={"type": "adaptive"},
             system=system_blokker,
-            tools=VERKTOY,
+            tools=verktoy,
             messages=meldinger,
         )
         if container_id:
