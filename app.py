@@ -174,6 +174,59 @@ st.markdown("""
 
 
 # =====================================================================
+#  Innlogging — enkel passord-port (admin + ett passord)
+# =====================================================================
+#
+# I skyen er appen offentlig tilgjengelig på en URL. For at ikke hvem som
+# helst skal kunne bruke (og koste deg penger i) API-kall, krever vi innlogging.
+# Brukernavnet er fast "admin"; passordet leses fra st.secrets["APP_PASSORD"]
+# (settes i Streamlit Cloud → Secrets). Lokalt uten konfigurert passord er
+# porten av, så egen utvikling ikke blokkeres.
+
+def _konfigurert_passord() -> str | None:
+    """Henter app-passordet fra st.secrets (sky) eller miljø (lokalt)."""
+    try:
+        if "APP_PASSORD" in st.secrets:
+            return st.secrets["APP_PASSORD"]
+    except Exception:
+        pass
+    return os.getenv("APP_PASSORD")
+
+
+def krev_innlogging():
+    """Stopper appen til riktig brukernavn (admin) + passord er oppgitt.
+    Innlogging huskes i session_state for resten av økten."""
+    passord = _konfigurert_passord()
+    if not passord:
+        # Ingen passord satt (typisk lokalt) — la appen være åpen.
+        return
+
+    if st.session_state.get("innlogget"):
+        with st.sidebar:
+            if st.button("Logg ut", key="logg_ut", use_container_width=True):
+                st.session_state["innlogget"] = False
+                st.rerun()
+        return
+
+    st.markdown("## 🔒 Logg inn")
+    st.caption("Skriv inn brukernavn og passord for å bruke agent-hubben.")
+    with st.form("innlogging"):
+        brukernavn = st.text_input("Brukernavn")
+        oppgitt = st.text_input("Passord", type="password")
+        send = st.form_submit_button("Logg inn")
+    if send:
+        if brukernavn.strip() == "admin" and oppgitt == passord:
+            st.session_state["innlogget"] = True
+            st.rerun()
+        else:
+            st.error("Feil brukernavn eller passord.")
+    st.stop()
+
+
+krev_innlogging()
+
+
+# =====================================================================
 #  Navigasjon mellom hjemmeside og enkeltagenter
 # =====================================================================
 
@@ -389,15 +442,11 @@ def vis_resultater(r: dict):
 # =====================================================================
 
 def vis_research_agent():
-    # --- Sidepanel ---
+    # --- Sidepanel: navigasjon og historikk (innstillinger er flyttet til hovedområdet) ---
     with st.sidebar:
         if st.button("← Tilbake til hub", use_container_width=True):
             gaa_til(None)
         st.markdown("## Research Agent")
-        st.markdown("---")
-
-        st.markdown("### Innstillinger")
-        config = bygg_config_panel()
         st.markdown("---")
 
         historikk = last_historikk()
@@ -436,29 +485,38 @@ def vis_research_agent():
     if "tema_input" not in st.session_state:
         st.session_state["tema_input"] = ""
 
-    tema = st.text_area(
-        "Tema",
-        placeholder="Hva vil du forske på?",
-        key="tema_input",
-        label_visibility="collapsed",
-    )
+    col_input, col_innst = st.columns([3, 2], gap="large")
 
-    har_tema = bool(tema.strip())
-    # Knappen bytter nøkkel etter om boksen har tekst — det styrer fargen
-    # (rød = tom, grønn = klar) via CSS-klassene .st-key-sok_tom/.st-key-sok_klar.
-    sok_key = "sok_klar" if har_tema else "sok_tom"
+    # Innstillingene ligger til høyre der det er god plass. De bygges først så
+    # `config` er klar når søkeknappen i venstre kolonne trenger den.
+    with col_innst:
+        st.markdown("#### Innstillinger")
+        config = bygg_config_panel()
 
-    c_sok, c_demo, _ = st.columns([1, 1.4, 4])
-    with c_sok:
-        if st.button("🔍 Søk", key=sok_key, disabled=not har_tema):
-            start_kjoring(tema.strip(), config)
-            st.rerun()
-    with c_demo:
-        if st.button("▶ Demo", key="demo_knapp",
-                     help="Viser hele live-grensesnittet uten ekte søk, API-kall eller kostnad."):
-            start_kjoring(tema.strip() or "Demoemne: fornybar energi i Norge",
-                          config, kjorefunksjon=kjor_demo, demo=True)
-            st.rerun()
+    with col_input:
+        tema = st.text_area(
+            "Tema",
+            placeholder="Hva vil du forske på?",
+            key="tema_input",
+            label_visibility="collapsed",
+        )
+
+        har_tema = bool(tema.strip())
+        # Knappen bytter nøkkel etter om boksen har tekst — det styrer fargen
+        # (rød = tom, grønn = klar) via CSS-klassene .st-key-sok_tom/.st-key-sok_klar.
+        sok_key = "sok_klar" if har_tema else "sok_tom"
+
+        c_sok, c_demo, _ = st.columns([1, 1.4, 2])
+        with c_sok:
+            if st.button("🔍 Søk", key=sok_key, disabled=not har_tema):
+                start_kjoring(tema.strip(), config)
+                st.rerun()
+        with c_demo:
+            if st.button("▶ Demo", key="demo_knapp",
+                         help="Viser hele live-grensesnittet uten ekte søk, API-kall eller kostnad."):
+                start_kjoring(tema.strip() or "Demoemne: fornybar energi i Norge",
+                              config, kjorefunksjon=kjor_demo, demo=True)
+                st.rerun()
 
     # --- Vis resultater (ferdig kjøring eller lagret søk) ---
     if "resultater" in st.session_state:
