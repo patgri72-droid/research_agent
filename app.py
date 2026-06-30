@@ -1,5 +1,7 @@
 import os
+import queue
 import sys
+import threading
 import time
 
 import streamlit as st
@@ -9,11 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import json
 
-from research_agent import kjor_research
-from analyse_agent import kjor_analyse
-from planlegging_agent import kjor_planlegging
-from run import lagre_alt, lagre_i_historikk, last_historikk
-from config import AgentConfig, MODELLER
+from run import kjor_pipeline, kjor_demo, last_historikk
+from config import AgentConfig, MODELLER, KjoringStoppet, kostnad_for
 
 
 def last_lagret_resultat(entry: dict) -> dict | None:
@@ -159,6 +158,207 @@ def gaa_til(agent_id):
 
 
 # =====================================================================
+#  Fase 2: ikke-blokkerende kjøring med live-aktivitet og Stopp
+# =====================================================================
+#
+# Agentene kjøres i en bakgrunnstråd. De sender hendelser på en kø
+# (de rører aldri `st.*` direkte). Et `st.fragment(run_every=1s)` tømmer
+# køen og tegner fremdrift hvert sekund, mens «Stopp» ligger utenfor
+# fragmentet og alltid er klikkbar.
+
+def start_kjoring(tema: str, config: AgentConfig, kjorefunksjon=kjor_pipeline,
+                  demo: bool = False):
+    """Spinner opp pipelinen i en bakgrunnstråd og lagrer kø/tråd/stopp
+    i session_state. Tråden rører kun køen og stopp-signalet — aldri st.*.
+
+    `kjorefunksjon` er som standard `kjor_pipeline` (ekte kjøring), men kan være
+    `kjor_demo` for å vise grensesnittet uten API-kall."""
+    ko = queue.Queue()
+    stopp = threading.Event()
+    ts = time.strftime("%Y-%m-%d_%H-%M")
+
+    def hendelse(ev):
+        ko.put(ev)
+
+    def arbeid():
+        try:
+            res = kjorefunksjon(tema, config, ts, hendelse=hendelse, stopp=stopp)
+            ko.put({"t": "ferdig", "resultat": res})
+        except KjoringStoppet:
+            ko.put({"t": "stoppet"})
+        except Exception as e:  # noqa: BLE001 — tråden må aldri dø stille
+            ko.put({"t": "feil", "melding": str(e)})
+
+    traad = threading.Thread(target=arbeid, daemon=True)
+    traad.start()
+
+    st.session_state["kjoring"] = {
+        "kø": ko, "traad": traad, "stopp": stopp, "tema": tema, "demo": demo,
+        "start": time.time(), "status": "Starter…",
+        "notater": 0, "logg": [], "forbruk": [],
+        "ferdig": False, "stoppet": False, "feil": None, "resultat": None,
+    }
+
+
+def _tøm_kø(kj: dict):
+    """Flytter alle ventende hendelser fra køen inn i akkumulatorene."""
+    ko = kj["kø"]
+    while True:
+        try:
+            ev = ko.get_nowait()
+        except queue.Empty:
+            break
+        t = ev.get("t")
+        if t == "status":
+            kj["status"] = ev["tekst"]
+            kj["logg"].append(f"• {ev['tekst']}")
+        elif t == "verktoy":
+            ikon = "🔎 Søk:  " if ev["navn"] == "web_search" else "📄 Henter:"
+            kj["logg"].append(f"{ikon} {ev.get('detalj', '')[:90]}")
+        elif t == "notat":
+            kj["notater"] = ev["antall"]
+        elif t == "forbruk":
+            kj["forbruk"].append(ev)
+        elif t == "ferdig":
+            kj["resultat"] = ev["resultat"]
+            kj["ferdig"] = True
+        elif t == "stoppet":
+            kj["stoppet"] = True
+        elif t == "feil":
+            kj["feil"] = ev["melding"]
+
+
+def _forbruk_sum(forbruk: list) -> tuple[float, int]:
+    """Returnerer (total kostnad i USD, totalt antall tokens) for kjøringen."""
+    kostnad = sum(
+        kostnad_for(f["modell"], f["input"], f["output"], f["cache_read"], f["cache_write"])
+        for f in forbruk
+    )
+    tokens = sum(f["input"] + f["cache_read"] + f["cache_write"] + f["output"]
+                 for f in forbruk)
+    return kostnad, tokens
+
+
+def vis_live_kjoring(kj: dict):
+    """Tegner live-fremdrift mens en kjøring pågår."""
+    st.subheader(f"🔬 {kj['tema']}")
+
+    if kj.get("demo"):
+        st.info("▶ DEMO-modus — ingen ekte søk eller API-kall. Tallene er oppdiktet.")
+
+    # Stopp UTENFOR fragmentet — full app-rerun, alltid klikkbar
+    if st.button("⏹ Stopp kjøringen", type="secondary"):
+        kj["stopp"].set()
+        kj["status"] = "Stopper… (fullfører pågående steg)"
+
+    @st.fragment(run_every=1.0)
+    def live():
+        kj = st.session_state.get("kjoring")
+        if kj is None:
+            return
+        _tøm_kø(kj)
+        kostnad, tokens = _forbruk_sum(kj["forbruk"])
+
+        # Avslutt og bytt vy når tråden er ferdig / stoppet / feilet
+        if kj["ferdig"]:
+            res = dict(kj["resultat"])
+            res["_kostnad"] = kostnad
+            res["_tokens"] = tokens
+            st.session_state["resultater"] = res
+            st.session_state["kjoring"] = None
+            st.rerun(scope="app")
+        if kj["stoppet"]:
+            st.session_state["kjoring"] = None
+            st.session_state["kjor_melding"] = (
+                "warning", "Kjøringen ble stoppet. Ingen rapport ble lagret.")
+            st.rerun(scope="app")
+        if kj["feil"]:
+            st.session_state["kjoring"] = None
+            st.session_state["kjor_melding"] = ("error", f"Feil under kjøring: {kj['feil']}")
+            st.rerun(scope="app")
+
+        forløpt = int(time.time() - kj["start"])
+        m, s = divmod(forløpt, 60)
+
+        st.markdown(f"**{kj['status']}**")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Tid", f"{m}m {s:02d}s")
+        c2.metric("Notater", kj["notater"])
+        c3.metric("Tokens", f"{tokens:,}".replace(",", " "))
+        c4.metric("Est. kostnad", f"${kostnad:.3f}")
+
+        if kj["logg"]:
+            st.caption("Aktivitet")
+            st.code("\n".join(kj["logg"][-12:]), language=None)
+
+    live()
+
+
+def vis_resultater(r: dict):
+    """Viser rapport/analyse/plan/PDF for en ferdig (eller lagret) kjøring."""
+    analyse = r.get("analyse")
+    plan = r.get("plan")
+
+    st.divider()
+    st.subheader(r["tema"])
+
+    if "_kostnad" in r:
+        st.caption(
+            f"Estimert kostnad: ${r['_kostnad']:.3f}  ·  "
+            f"{r.get('_tokens', 0):,}".replace(",", " ") + " tokens")
+
+    if analyse:
+        styrke = analyse.get("grunnlag_styrke", "ukjent")
+        farge = {"sterkt": "green", "middels": "orange", "svakt": "red"}.get(styrke, "gray")
+        st.markdown(f"Grunnlagsstyrke: :{farge}[**{styrke.upper()}**]")
+
+    fane_navn = ["Rapport"]
+    if analyse:
+        fane_navn.append("Analyse")
+    if plan:
+        fane_navn.append("Handlingsplan")
+    faner = st.tabs(fane_navn)
+    fane = dict(zip(fane_navn, faner))
+
+    with fane["Rapport"]:
+        st.markdown(r["research"]["rapport"])
+
+    if analyse:
+        with fane["Analyse"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Mønstre og tendenser**")
+                for m in analyse.get("mønstre", []):
+                    st.markdown(f"- {m}")
+                st.markdown("**Nøkkelfakta**")
+                for f in analyse.get("nøkkelfakta", []):
+                    st.markdown(f"- {f}")
+            with col2:
+                st.markdown("**Usikkerhet og risiko**")
+                for u in analyse.get("usikkerhet", []):
+                    st.markdown(f"- {u}")
+                st.markdown("**Kunnskapshull**")
+                for k in analyse.get("kunnskapshull", []):
+                    st.markdown(f"- {k}")
+            st.divider()
+            st.markdown(f"_{analyse.get('sammendrag', '')}_")
+
+    if plan:
+        with fane["Handlingsplan"]:
+            st.markdown(plan)
+
+    pdf_path = r["filer"].get("pdf")
+    if pdf_path and os.path.exists(pdf_path):
+        st.divider()
+        with open(pdf_path, "rb") as f:
+            st.download_button(
+                "Last ned PDF-rapport", f,
+                file_name=os.path.basename(pdf_path),
+                mime="application/pdf",
+            )
+
+
+# =====================================================================
 #  Research-agentens grensesnitt (det vi bygde i fase 1)
 # =====================================================================
 
@@ -195,6 +395,18 @@ def vis_research_agent():
     st.title("Research Agent")
     st.caption("Skriv inn et tema for en dybdeundersøkelse med analyse og handlingsplan")
 
+    # Pågår en kjøring? Vis live-fremdrift og stopp her — ikke input/resultat.
+    kjoring = st.session_state.get("kjoring")
+    if kjoring is not None:
+        vis_live_kjoring(kjoring)
+        return
+
+    # Melding fra forrige kjøring (stoppet / feil)
+    melding = st.session_state.pop("kjor_melding", None)
+    if melding:
+        nivaa, tekst = melding
+        getattr(st, nivaa)(tekst)
+
     if "tema_input" not in st.session_state:
         st.session_state["tema_input"] = ""
 
@@ -205,111 +417,22 @@ def vis_research_agent():
         label_visibility="collapsed",
     )
 
-    start_knapp = st.button("Start forskning", type="primary", disabled=not tema.strip())
+    c_start, c_demo = st.columns([2, 1])
+    with c_start:
+        if st.button("Start forskning", type="primary", disabled=not tema.strip(),
+                     use_container_width=True) and tema.strip():
+            start_kjoring(tema.strip(), config)
+            st.rerun()
+    with c_demo:
+        if st.button("▶ Demo (uten søk)", use_container_width=True,
+                     help="Viser hele live-grensesnittet uten ekte søk, API-kall eller kostnad."):
+            start_kjoring(tema.strip() or "Demoemne: fornybar energi i Norge",
+                          config, kjorefunksjon=kjor_demo, demo=True)
+            st.rerun()
 
-    if start_knapp and tema.strip():
-        start = time.time()
-        ts = time.strftime("%Y-%m-%d_%H-%M")
-
-        analyse = None
-        plan = None
-
-        with st.status("Kjører agenter...", expanded=True) as status:
-            st.write("Forskningsagent kjører...")
-            research = kjor_research(tema, ts, config)
-            st.write(f"Forskningsagent ferdig — {len(research['notater'])} notater")
-
-            if config.kjor_analyse:
-                st.write("Analyseagent kjører...")
-                analyse = kjor_analyse(research, config)
-                st.write(f"Analyseagent ferdig — grunnlagsstyrke: {analyse['grunnlag_styrke']}")
-
-            if config.kjor_plan:
-                st.write("Planleggingsagent kjører...")
-                plan = kjor_planlegging(research, analyse, config)
-                st.write("Planleggingsagent ferdig")
-
-            filer = lagre_alt(tema, research, analyse, plan, ts)
-            lagre_i_historikk(tema, filer)
-
-            elapsed = time.time() - start
-            minutter, sekunder = divmod(int(elapsed), 60)
-            status.update(label=f"Ferdig på {minutter}m {sekunder}s", state="complete")
-
-        st.session_state["resultater"] = {
-            "tema": tema,
-            "research": research,
-            "analyse": analyse,
-            "plan": plan,
-            "filer": filer,
-        }
-        st.rerun()
-
-    # --- Vis resultater ---
+    # --- Vis resultater (ferdig kjøring eller lagret søk) ---
     if "resultater" in st.session_state:
-        r = st.session_state["resultater"]
-        analyse = r.get("analyse")
-        plan = r.get("plan")
-
-        st.divider()
-        st.subheader(r["tema"])
-
-        if analyse:
-            styrke = analyse.get("grunnlag_styrke", "ukjent")
-            farge = {"sterkt": "green", "middels": "orange", "svakt": "red"}.get(styrke, "gray")
-            st.markdown(f"Grunnlagsstyrke: :{farge}[**{styrke.upper()}**]")
-
-        # Bygg bare fanene som har innhold
-        fane_navn = ["Rapport"]
-        if analyse:
-            fane_navn.append("Analyse")
-        if plan:
-            fane_navn.append("Handlingsplan")
-        faner = st.tabs(fane_navn)
-        fane = dict(zip(fane_navn, faner))
-
-        with fane["Rapport"]:
-            st.markdown(r["research"]["rapport"])
-
-        if analyse:
-            with fane["Analyse"]:
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.markdown("**Mønstre og tendenser**")
-                    for m in analyse.get("mønstre", []):
-                        st.markdown(f"- {m}")
-
-                    st.markdown("**Nøkkelfakta**")
-                    for f in analyse.get("nøkkelfakta", []):
-                        st.markdown(f"- {f}")
-
-                with col2:
-                    st.markdown("**Usikkerhet og risiko**")
-                    for u in analyse.get("usikkerhet", []):
-                        st.markdown(f"- {u}")
-
-                    st.markdown("**Kunnskapshull**")
-                    for k in analyse.get("kunnskapshull", []):
-                        st.markdown(f"- {k}")
-
-                st.divider()
-                st.markdown(f"_{analyse.get('sammendrag', '')}_")
-
-        if plan:
-            with fane["Handlingsplan"]:
-                st.markdown(plan)
-
-        pdf_path = r["filer"].get("pdf")
-        if pdf_path and os.path.exists(pdf_path):
-            st.divider()
-            with open(pdf_path, "rb") as f:
-                st.download_button(
-                    "Last ned PDF-rapport",
-                    f,
-                    file_name=os.path.basename(pdf_path),
-                    mime="application/pdf",
-                )
+        vis_resultater(st.session_state["resultater"])
 
 
 # =====================================================================

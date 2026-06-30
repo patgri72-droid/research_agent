@@ -7,11 +7,34 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
-from config import AgentConfig, STANDARD_CONFIG
+from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet
 
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+
+# --- Hendelser (live-oppdateringer til nettsiden) ---
+#
+# Agentene kjenner ikke til Streamlit. De kaller en valgfri `hendelse`-callback
+# med en enkel dict; app.py legger den på en kø og tegner den. Når `hendelse`
+# er None (CLI), skjer ingenting — uendret oppførsel.
+
+def _meld(hendelse, **felt):
+    if hendelse is not None:
+        hendelse(felt)
+
+
+def _forbruk(hendelse, modell, respons):
+    """Sender token-forbruket fra ett svar videre til kostnadsestimatet."""
+    u = getattr(respons, "usage", None)
+    if hendelse is None or u is None:
+        return
+    _meld(hendelse, t="forbruk", modell=modell,
+          input=getattr(u, "input_tokens", 0) or 0,
+          output=getattr(u, "output_tokens", 0) or 0,
+          cache_read=getattr(u, "cache_read_input_tokens", 0) or 0,
+          cache_write=getattr(u, "cache_creation_input_tokens", 0) or 0)
 
 # --- Spinner (viser at agenten jobber) ---
 
@@ -129,13 +152,15 @@ def sett_cache_punkt(meldinger: list):
 # --- Agenløkken ---
 
 def kjor_research(tema: str, tidsstempel: str = None,
-                  config: AgentConfig = None) -> dict:
+                  config: AgentConfig = None, hendelse=None, stopp=None) -> dict:
     global notater
     notater = []
     if config is None:
         config = STANDARD_CONFIG
 
-    print(f"  Forskningsagent kjører...")
+    _meld(hendelse, t="status", tekst="Forskningsagent kjører…")
+    if hendelse is None:
+        print(f"  Forskningsagent kjører...")
 
     meldinger = [{"role": "user", "content": f"Undersøk grundig: {tema}"}]
     endelig_rapport = ""
@@ -148,6 +173,9 @@ def kjor_research(tema: str, tidsstempel: str = None,
                        "cache_control": {"type": "ephemeral"}}]
 
     while True:
+        if stopp is not None and stopp.is_set():
+            raise KjoringStoppet()
+
         sett_cache_punkt(meldinger)
         kall_kwargs = dict(
             model=config.research_modell,
@@ -160,8 +188,13 @@ def kjor_research(tema: str, tidsstempel: str = None,
         if container_id:
             kall_kwargs["container"] = container_id
 
-        with Spinner("Søker og analyserer"):
+        if hendelse is None:
+            with Spinner("Søker og analyserer"):
+                respons = client.messages.create(**kall_kwargs)
+        else:
             respons = client.messages.create(**kall_kwargs)
+
+        _forbruk(hendelse, config.research_modell, respons)
 
         if hasattr(respons, "container") and respons.container:
             container_id = respons.container.id
@@ -169,6 +202,14 @@ def kjor_research(tema: str, tidsstempel: str = None,
         for blokk in respons.content:
             if blokk.type == "text" and blokk.text:
                 endelig_rapport = blokk.text
+            elif blokk.type == "server_tool_use":
+                detalj = blokk.input or {}
+                if blokk.name == "web_search":
+                    _meld(hendelse, t="verktoy", navn="web_search",
+                          detalj=detalj.get("query", ""))
+                elif blokk.name == "web_fetch":
+                    _meld(hendelse, t="verktoy", navn="web_fetch",
+                          detalj=detalj.get("url", ""))
 
         if respons.stop_reason == "end_turn":
             break
@@ -184,6 +225,9 @@ def kjor_research(tema: str, tidsstempel: str = None,
             for blokk in respons.content:
                 if blokk.type == "tool_use":
                     resultat = kjor_verktoy(blokk.name, blokk.input)
+                    if blokk.name == "ta_notater":
+                        _meld(hendelse, t="notat",
+                              antall=resultat.get("totalt_antall", len(notater)))
                     resultater.append({
                         "type": "tool_result",
                         "tool_use_id": blokk.id,
@@ -192,7 +236,9 @@ def kjor_research(tema: str, tidsstempel: str = None,
             meldinger.append({"role": "user", "content": resultater})
 
     md_fil, json_fil = lagre_resultater(tema, endelig_rapport, notater, tidsstempel)
-    print(f"  Ferdig — {len(notater)} notater")
+    _meld(hendelse, t="status", tekst=f"Forskningsagent ferdig — {len(notater)} notater")
+    if hendelse is None:
+        print(f"  Ferdig — {len(notater)} notater")
 
     return {
         "tema": tema,

@@ -80,6 +80,99 @@ Streamlit-appen kjører kun lokalt — ingen kostnad utover API-kall. Lukk termi
 
 ---
 
+## Agent-hub (hjemmeside)
+
+`app.py` åpner nå på en **hub** — en hjemmeside med klikkbare agent-bobler (kort),
+én per agent, bygget fra `AGENTER`-registeret. Enkel ruter i `session_state`
+(`aktiv_agent` + `gaa_til`). Research-agenten er koblet inn (`vis_research_agent`);
+LinkedIn-agenten vises som "Kommer snart" (`render: None` — finnes som CLI, mangler webview).
+Ny agent legges til på én linje i `AGENTER` + en `vis_<navn>()`-funksjon.
+
+---
+
+## Fase 2 — ikke-blokkerende kjøring med live-aktivitet, Stopp og kostnad (BYGGET)
+
+Agentene kjøres nå i en **bakgrunnstråd** og rapporterer live til nettsiden, med en
+alltid-klikkbar **Stopp**-knapp og et **kostnadsestimat** basert på faktisk tokenforbruk.
+
+**Slik henger det sammen:**
+
+1. **Hendelses-callback** — `kjor_research/analyse/planlegging(..., hendelse=None, stopp=None)`.
+   Agentene kaller `hendelse({...})` med enkle dict-er (`status`, `verktoy`, `notat`,
+   `forbruk`) — aldri `st.*`. Standard `None` = uendret CLI-oppførsel. Forbruk leses fra
+   `respons.usage` (input/output + `cache_read`/`cache_write` hver for seg). Søk/henting
+   leses fra `server_tool_use`-blokker i svaret.
+2. **`kjor_pipeline()` i `run.py`** — kjeder research→analyse→plan→lagring og tar
+   `hendelse`/`stopp`. Brukt av både CLI og web. Avskrudde trinn hoppes over som før.
+3. **Bakgrunnstråd + kø (`app.py`)** — `start_kjoring()` starter en `threading.Thread`
+   som kjører `kjor_pipeline` og dytter hendelser på en `queue.Queue`. Tråden rører kun
+   køen + stopp-signalet, aldri `session_state`/`st.*`. Sluttresultatet sendes som en
+   `ferdig`/`stoppet`/`feil`-hendelse på køen (tråden skriver ikke session_state selv).
+4. **Stopp** — `threading.Event` sjekkes øverst i forskningsloopen og før hver agent;
+   agentene reiser `KjoringStoppet` (definert i `config.py`), tråden fanger den.
+   Granularitet: mellom API-kall (et pågående kall fullføres — sekunder).
+5. **Live-visning** — `st.fragment(run_every=1.0)` tømmer køen og tegner status, tid,
+   notat-antall, tokens og `$`-estimat hvert sekund. Stopp-knappen ligger **utenfor**
+   fragmentet (full app-rerun) så den alltid er klikkbar. Når tråden er ferdig bytter
+   fragmentet til resultatvisning via `st.rerun(scope="app")`.
+
+**Kostnad:** `MODELL_PRISER` + `kostnad_for()` i `config.py` (priser per 1M tokens fra
+API-referansen). Cache-lesing vektes 0,1x, cache-skriving 1,25x — så den agentiske loopen
+ikke overvurderes. Estimatet vises live og lagres på resultatet (`_kostnad`/`_tokens`).
+
+**Demo-modus:** `kjor_demo()` i `run.py` har samme `hendelse`/`stopp`-grensesnitt som
+`kjor_pipeline`, men sender oppdiktede hendelser med korte pauser — **ingen API-kall, ingen
+søk, ingen kostnad, ingen filer**. Knappen «▶ Demo (uten søk)» i `app.py` kjører den i samme
+bakgrunnstråd, så du ser hele live-grensesnittet (søk, henting, notater, tokens, $-estimat,
+Stopp) gratis. Live-visningen merkes med et DEMO-banner.
+
+Testet headless (`AppTest`): hub + research-vy rendrer, begge knappene (Start + Demo) finnes,
+alle moduler importerer rent, `kostnad_for` gir riktig sum, `kjor_demo` emitterer riktige
+hendelser og respekterer stopp. Ekte live-kjøring krever API-kall — demoen gjør ikke det.
+
+---
+
+## Fase 3 — «Tilgjengelig overalt» (PLANLAGT, IKKE BYGGET)
+
+Mål: få appen ut på nett så den kan åpnes fra hvor som helst (mobil/annen PC) via en URL,
+trygt og kostnadskontrollert. Ikke en ny agent-funksjon — et **deploy- og tilgangssteg**.
+
+**Steg (i rekkefølge, lav→høyere risiko):**
+
+1. **API-nøkkel fra ett sted** — lag `hent_api_nokkel()` i `config.py` som prøver
+   `st.secrets["ANTHROPIC_API_KEY"]` først (sky) og faller tilbake til `os.getenv` / `.env`
+   (lokalt). Alle agentene (`research/analyse/planlegging/linkedin`) bytter
+   `os.getenv("ANTHROPIC_API_KEY")` → denne helperen. Da virker samme kode lokalt og i skyen.
+   *Lav risiko, ingen UI-endring.*
+
+2. **Passord-port** — en enkel gate øverst i `app.py`: `st.text_input(type="password")`
+   sammenlignet mot `st.secrets["APP_PASSORD"]`, husket i `session_state`. Appen vises kun
+   etter riktig passord. Hindrer at fremmede brenner API-tokens. *Lav risiko.*
+
+3. **Flyktig disk i skyen** — på Streamlit Community Cloud forsvinner filer ved restart/dvale,
+   så `historikk.json`, `rapporter/` og `linkedin/` overlever ikke slik de gjør lokalt.
+   Tre alternativer (velg én):
+   - **(a) Akseptér flyktighet** *(anbefalt MVP)* — historikk nullstilles ved restart;
+     rapporter lastes ned med PDF-knappen mens økten lever. Kostnadsestimat + nedlasting
+     gjør dette brukbart. Minst arbeid.
+   - **(b) Commit til GitHub** — appen pusher historikk/rapporter til repoet (krever
+     GitHub-token som secret). Mer robust, mer kompleksitet.
+   - **(c) Ekstern lagring** — gratis DB (Supabase/Google Sheets). Mest robust, mest arbeid.
+
+4. **Deploy** — repoet ligger allerede på privat GitHub (`origin`). På share.streamlit.io:
+   «New app» → velg repo + branch + `app.py` → legg `ANTHROPIC_API_KEY` og `APP_PASSORD`
+   inn under app-ets **Secrets**. Verifiser at `requirements.txt` er komplett
+   (`anthropic`, `python-dotenv`, `streamlit`, `fpdf2`).
+
+5. **Robusthet + kostnadskontroll i skyen** — test lange kjøringer mot skyens
+   inaktivitets-timeout (bakgrunnstråd + `st.fragment` fungerer, men en kjøring kan kollidere
+   med dvale). Vurder en hard øvre grense på `maks_sok`/`maks_hentinger` i skyversjonen.
+   Demo-modus + synlig `$`-estimat (fase 2) er gode sikkerhetsnett mot overraskelser her.
+
+**Avhengighet:** bør gjøres ETTER at fase 2 er committet (trygt sjekkpunkt før deploy).
+
+---
+
 ## Designvalg / konvensjoner
 
 - **Stille terminal-output:** Agentene viser kun statuslinjer (kjører/ferdig), ikke
@@ -132,6 +225,32 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
   deler; visningen bygger bare fanene som har innhold. Plan tvinges av hvis analyse er av (`__post_init__`).
 - Fikset tomt-label-varsel på søkefeltet (`"Tema"` + `label_visibility="collapsed"`).
 - Testet med Streamlit `AppTest` (headless) — ingen runtime-feil, alle widgets rendrer.
+
+### 2026-06-11 (hub + fase 2-design)
+- **Agent-hub:** `app.py` refaktorert til hub-struktur — hjemmeside med agent-bobler,
+  `session_state`-ruter, research-grensesnitt pakket i `vis_research_agent`, `AGENTER`-register.
+  Testet headless med `AppTest` (to bobler, "Åpne"/"Tilbake"-navigasjon virker). Commit `b5951f5`.
+- **Fase 2 designet, ikke bygget:** ikke-blokkerende kjøring (bakgrunnstråd + hendelses-kø +
+  `threading.Event`-stopp + `st.fragment(run_every)`) med kostnadsestimat. Se egen seksjon over.
+  Stoppet rett før implementasjon — neste steg var å hente modellpriser fra API-referansen.
+
+### 2026-06-11 (fase 2 bygget)
+- **`config.py`:** `MODELL_PRISER` (USD/1M, fra API-referansen) + `kostnad_for()` (vekter
+  cache-lesing 0,1x / -skriving 1,25x) + `KjoringStoppet`-unntak.
+- **Agentene tar `hendelse=None, stopp=None`:** sender live-hendelser (`status`/`verktoy`/
+  `notat`/`forbruk`) via callback og sjekker stopp. Forbruk fra `respons.usage`; søk/henting
+  fra `server_tool_use`-blokker. `None` = uendret CLI-oppførsel (Spinner/print beholdt).
+- **`run.py`:** ny `kjor_pipeline()` som kjeder agentene + lagrer; brukt av CLI og web.
+- **`app.py`:** bakgrunnstråd + `queue.Queue` + `st.fragment(run_every=1.0)` live-visning
+  (tid/notater/tokens/$-estimat), Stopp-knapp utenfor fragmentet. Resultat/feil/stopp sendes
+  som hendelse på køen; tråden rører aldri `st.*`. Resultatvisning faktorert til `vis_resultater`.
+- **Demo-modus:** `kjor_demo()` i `run.py` + «▶ Demo (uten søk)»-knapp i `app.py` — viser hele
+  live-grensesnittet med oppdiktede hendelser, uten API-kall/søk/kostnad/filer. Banner i live-vyen.
+- Testet headless (`AppTest` + kompilering + `kostnad_for` + `kjor_demo`-hendelser/stopp).
+- **Fase 3 planlagt** (ikke bygget): deploy til Streamlit Community Cloud — secrets-basert
+  API-nøkkel, passord-port, håndtering av flyktig disk, deploy-oppskrift. Se "Fase 3"-seksjonen.
+- Merknad: Streamlit re-importerer ikke moduler ved nettleser-reload — restart serveren
+  (Ctrl+C + `.\kjor_app.bat`) etter endringer i importerte filer (`run.py`/`config.py`/agenter).
 
 ### 2026-06-11
 - **Kostnadsreduksjon:** Analyse- og planleggingsagent flyttet til `claude-sonnet-4-6`

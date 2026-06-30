@@ -19,6 +19,41 @@ MODELLER = {
     "claude-fable-5": "Fable 5",
 }
 
+# --- Modellpriser (USD per 1 million tokens: input, output) ---
+# Hentet fra den offisielle API-referansen. Brukes til kostnadsestimatet i
+# nettsiden. Oppdater her hvis prisene endrer seg.
+
+MODELL_PRISER = {
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-haiku-4-5-20251001": (1.0, 5.0),
+    "claude-fable-5": (10.0, 50.0),
+}
+
+# Cache-lesing koster ~0,1x vanlig input-pris; cache-skriving ~1,25x (5 min TTL).
+CACHE_LESE_FAKTOR = 0.1
+CACHE_SKRIVE_FAKTOR = 1.25
+
+
+def kostnad_for(modell: str, input_tokens: int = 0, output_tokens: int = 0,
+                cache_read: int = 0, cache_write: int = 0) -> float:
+    """Beregner kostnaden (USD) for ett API-kall ut fra token-forbruk.
+    Cache-lesing/-skriving vektes separat, slik at den agentiske loopen
+    (der det meste leses fra cache) ikke overvurderes."""
+    inn_pris, ut_pris = MODELL_PRISER.get(modell, (0.0, 0.0))
+    input_kostnad = (
+        input_tokens * inn_pris
+        + cache_read * inn_pris * CACHE_LESE_FAKTOR
+        + cache_write * inn_pris * CACHE_SKRIVE_FAKTOR
+    )
+    output_kostnad = output_tokens * ut_pris
+    return (input_kostnad + output_kostnad) / 1_000_000
+
+
+class KjoringStoppet(Exception):
+    """Reises av en agent når brukeren har bedt om å stoppe kjøringen.
+    Fanges av bakgrunnstråden i app.py så pipelinen avsluttes pent."""
+
 # --- Standard system-prompts (flyttet hit fra agent-filene) ---
 
 STANDARD_RESEARCH_PROMPT = """Du er en avansert forskningsagent. Når du får et tema å undersøke:

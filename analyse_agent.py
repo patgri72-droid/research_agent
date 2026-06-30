@@ -3,16 +3,19 @@ import json
 import os
 from dotenv import load_dotenv
 
-from config import AgentConfig, STANDARD_CONFIG
+from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet
 
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
-def kjor_analyse(research_data: dict, config: AgentConfig = None) -> dict:
+def kjor_analyse(research_data: dict, config: AgentConfig = None,
+                 hendelse=None, stopp=None) -> dict:
     if config is None:
         config = STANDARD_CONFIG
+    if stopp is not None and stopp.is_set():
+        raise KjoringStoppet()
     tema = research_data.get("tema", "")
     rapport = research_data.get("rapport", "")
     notat_liste = research_data.get("notater", [])
@@ -31,7 +34,10 @@ def kjor_analyse(research_data: dict, config: AgentConfig = None) -> dict:
 
 Gjennomfør en grundig analyse av dette materialet."""
 
-    print(f"  Analyseagent kjører...")
+    if hendelse is not None:
+        hendelse({"t": "status", "tekst": "Analyseagent kjører…"})
+    else:
+        print(f"  Analyseagent kjører...")
 
     respons = client.messages.create(
         model=config.analyse_modell,
@@ -85,7 +91,17 @@ Gjennomfør en grundig analyse av dette materialet."""
     tekst = next(b.text for b in respons.content if b.type == "text")
     analyse = json.loads(tekst)
 
-    print(f"  Ferdig — grunnlagsstyrke: {analyse['grunnlag_styrke']}")
+    u = getattr(respons, "usage", None)
+    if hendelse is not None and u is not None:
+        hendelse({"t": "forbruk", "modell": config.analyse_modell,
+                  "input": getattr(u, "input_tokens", 0) or 0,
+                  "output": getattr(u, "output_tokens", 0) or 0,
+                  "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+                  "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0})
+        hendelse({"t": "status",
+                  "tekst": f"Analyseagent ferdig — grunnlag: {analyse['grunnlag_styrke']}"})
+    else:
+        print(f"  Ferdig — grunnlagsstyrke: {analyse['grunnlag_styrke']}")
 
     return analyse
 

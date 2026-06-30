@@ -3,7 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-from config import AgentConfig, STANDARD_CONFIG
+from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet
 
 load_dotenv()
 
@@ -11,9 +11,11 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 def kjor_planlegging(research_data: dict, analyse_data: dict,
-                     config: AgentConfig = None) -> str:
+                     config: AgentConfig = None, hendelse=None, stopp=None) -> str:
     if config is None:
         config = STANDARD_CONFIG
+    if stopp is not None and stopp.is_set():
+        raise KjoringStoppet()
     tema = research_data.get("tema", "")
 
     innhold = f"""Tema: {tema}
@@ -36,7 +38,10 @@ Grunnlagsstyrke: {analyse_data.get('grunnlag_styrke', 'ukjent')}
 
 Lag en konkret handlingsplan basert på dette grunnlaget."""
 
-    print(f"  Planleggingsagent kjører...")
+    if hendelse is not None:
+        hendelse({"t": "status", "tekst": "Planleggingsagent kjører…"})
+    else:
+        print(f"  Planleggingsagent kjører...")
 
     plan = ""
     with client.messages.stream(
@@ -48,8 +53,19 @@ Lag en konkret handlingsplan basert på dette grunnlaget."""
     ) as stream:
         for tekst in stream.text_stream:
             plan += tekst
+        if hendelse is not None:
+            u = getattr(stream.get_final_message(), "usage", None)
+            if u is not None:
+                hendelse({"t": "forbruk", "modell": config.plan_modell,
+                          "input": getattr(u, "input_tokens", 0) or 0,
+                          "output": getattr(u, "output_tokens", 0) or 0,
+                          "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+                          "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0})
 
-    print(f"  Ferdig")
+    if hendelse is not None:
+        hendelse({"t": "status", "tekst": "Planleggingsagent ferdig"})
+    else:
+        print(f"  Ferdig")
     return plan
 
 
