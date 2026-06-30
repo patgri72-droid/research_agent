@@ -1,13 +1,9 @@
 import anthropic
 import json
-import os
-from dotenv import load_dotenv
 
-from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet
+from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet, hent_api_nokkel
 
-load_dotenv()
-
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = anthropic.Anthropic(api_key=hent_api_nokkel())
 
 
 def kjor_analyse(research_data: dict, config: AgentConfig = None,

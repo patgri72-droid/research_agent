@@ -5,13 +5,9 @@ import sys
 import threading
 import time
 from datetime import datetime
-from dotenv import load_dotenv
+from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet, hent_api_nokkel
 
-from config import AgentConfig, STANDARD_CONFIG, KjoringStoppet
-
-load_dotenv()
-
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = anthropic.Anthropic(api_key=hent_api_nokkel())
 
 
 # --- Hendelser (live-oppdateringer til nettsiden) ---

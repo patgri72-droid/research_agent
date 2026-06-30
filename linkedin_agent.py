@@ -20,14 +20,11 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-from dotenv import load_dotenv
 
-from config import AgentConfig, STANDARD_CONFIG
+from config import AgentConfig, STANDARD_CONFIG, hent_api_nokkel
 
-load_dotenv()
-
-# SDK-en henter ANTHROPIC_API_KEY fra miljøet selv (lastet av load_dotenv over).
-client = anthropic.Anthropic()
+# Nøkkelen hentes sentralt: st.secrets i skyen, .env/miljø lokalt.
+client = anthropic.Anthropic(api_key=hent_api_nokkel())
 
 # --- Samle råmateriale ---
 

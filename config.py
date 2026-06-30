@@ -8,7 +8,35 @@ og system-promptene. Tidligere var alt dette hardkodet spredt i hver
 nettsiden (eller CLI) kan styre oppførselen uten å redigere Python.
 """
 
+import os
+
 from dataclasses import dataclass, field, asdict
+
+from dotenv import load_dotenv
+
+# Last .env inn i miljøet én gang ved import. Lokalt gir dette tilgang til
+# ANTHROPIC_API_KEY; i skyen finnes ingen .env, og nøkkelen hentes fra
+# st.secrets i stedet (se hent_api_nokkel under).
+load_dotenv()
+
+
+def hent_api_nokkel() -> str | None:
+    """Henter ANTHROPIC_API_KEY fra rett kilde uansett hvor appen kjører.
+
+    I skyen (Streamlit Community Cloud) finnes ingen .env-fil — nøkkelen legges
+    i app-ens "Secrets" og leses via st.secrets. Lokalt (CLI eller lokal
+    Streamlit) finnes ingen secrets-fil, og vi faller tilbake til miljøet/.env.
+    Prøver derfor st.secrets først, men svelger feilen stille hvis Streamlit
+    ikke er tilgjengelig eller ingen secrets er konfigurert."""
+    try:
+        import streamlit as st
+
+        if "ANTHROPIC_API_KEY" in st.secrets:
+            return st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        # Ikke kjørt under Streamlit, eller ingen secrets.toml — det er greit.
+        pass
+    return os.getenv("ANTHROPIC_API_KEY")
 
 # --- Tilgjengelige modeller (vises i nedtrekksmeny i grensesnittet) ---
 
