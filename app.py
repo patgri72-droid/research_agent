@@ -436,6 +436,129 @@ def vis_research_agent():
 
 
 # =====================================================================
+#  LinkedIn-agentens grensesnitt
+# =====================================================================
+
+import linkedin_agent as la
+
+SPRAK_VALG = ["begge", "norsk", "engelsk"]
+SPRAK_TEKST = {"begge": "Begge (norsk + engelsk)", "norsk": "Norsk", "engelsk": "Engelsk"}
+
+
+def _lagre_godkjent(resultat: dict, config: AgentConfig) -> str:
+    """Skriver den ferdige post-teksten til godkjent-mappa, så agenten lærer av den."""
+    mappe = config.linkedin_godkjent_mappe
+    os.makedirs(mappe, exist_ok=True)
+    ts = time.strftime("%Y-%m-%d_%H-%M")
+    tittel = resultat.get("arbeidstittel", "post")[:40].replace(" ", "_")
+    sti = os.path.join(mappe, f"{ts}_{tittel}.md")
+    with open(sti, "w", encoding="utf-8") as f:
+        f.write(la.render_post(resultat, config.linkedin_sprak) + "\n")
+    return sti
+
+
+def vis_linkedin_resultat(data: dict):
+    """Viser en ferdig generert post med kopierbar tekst og lagre-knapp."""
+    resultat = data["resultat"]
+    config = data["config"]
+
+    st.divider()
+    st.subheader(f"✍️ {resultat.get('arbeidstittel', 'Post')}")
+    st.caption(f"Lagret: {data['sti']}")
+
+    post_tekst = la.render_post(resultat, config.linkedin_sprak)
+    st.text_area("Ferdig post (kopier herfra)", value=post_tekst, height=320,
+                 key="linkedin_post_tekst")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button("Last ned posten (.md)", post_tekst,
+                           file_name=os.path.basename(data["sti"]),
+                           mime="text/markdown", use_container_width=True)
+    with c2:
+        if st.button("⭐ Lagre som godkjent (lær stemmen min)", use_container_width=True,
+                     help="Legger posten i godkjent-mappa så agenten matcher stilen neste gang."):
+            sti = _lagre_godkjent(resultat, config)
+            st.success(f"Lagret som stileksempel: {sti}")
+
+    bilder = resultat.get("bilde_prompter", [])
+    if bilder:
+        with st.expander("🎨 Bilde-prompter (til Midjourney/DALL-E/Gemini)"):
+            for b in bilder:
+                st.markdown(f"**{b['plassering']}:**")
+                st.code(b["prompt"], language=None)
+
+    skjermbilder = resultat.get("skjermbilde_forslag", [])
+    if skjermbilder:
+        with st.expander("📸 Skjermbilder fra prosjektet ditt"):
+            for s in skjermbilder:
+                st.markdown(f"- {s}")
+
+
+def vis_linkedin_agent():
+    std = AgentConfig()
+
+    # --- Sidepanel ---
+    with st.sidebar:
+        if st.button("← Tilbake til hub", use_container_width=True):
+            gaa_til(None)
+        st.markdown("## LinkedIn-Agent")
+        st.markdown("---")
+
+        st.markdown("### Innstillinger")
+        sprak = st.radio("Språk", SPRAK_VALG, index=SPRAK_VALG.index(std.linkedin_sprak),
+                         format_func=lambda k: SPRAK_TEKST[k])
+        linkedin_modell = velg_modell("Modell", std.linkedin_modell, "m_linkedin")
+
+        with st.expander("Skrivestil (din stemme)"):
+            st.caption("Dette styrer tonen. Endringer her gjelder kun denne økten.")
+            stil = st.text_area("Stil", value=std.linkedin_stil, height=260,
+                                label_visibility="collapsed")
+
+    config = AgentConfig(
+        linkedin_sprak=sprak,
+        linkedin_modell=linkedin_modell,
+        linkedin_stil=stil.strip() or std.linkedin_stil,
+    )
+
+    # Hvor mange godkjente stileksempler er lastet?
+    eksempler = la.les_godkjente_poster(config)
+    antall_eks = eksempler.count("--- Eksempelpost ---") if eksempler else 0
+    with st.sidebar:
+        st.markdown("---")
+        if antall_eks:
+            st.caption(f"📚 {antall_eks} godkjente stileksempler i bruk — agenten matcher stemmen din.")
+        else:
+            st.caption("📭 Ingen godkjente eksempler ennå. Trykk «Lagre som godkjent» "
+                       "på en post du liker, så lærer agenten stemmen din over tid.")
+
+    # --- Hovedinnhold ---
+    st.title("LinkedIn-Agent")
+    st.caption("Skriver en ferdig LinkedIn-post i din stemme fra prosjektlogg, "
+               "git-historikk og notatene dine.")
+
+    vinkling = st.text_input(
+        "Vinkling",
+        placeholder="Hva skal posten handle om? (la stå tom så velger agenten selv)",
+        label_visibility="collapsed",
+    )
+
+    if st.button("Skriv post", type="primary", use_container_width=True):
+        with st.spinner("LinkedIn-agenten skriver…"):
+            try:
+                resultat = la.kjor_linkedin(vinkling.strip(), config)
+                sti = la.lagre_post(vinkling.strip(), resultat, config)
+                st.session_state["linkedin_resultat"] = {
+                    "resultat": resultat, "config": config, "sti": sti,
+                }
+            except Exception as e:  # noqa: BLE001
+                st.error(f"Feil under generering: {e}")
+
+    if "linkedin_resultat" in st.session_state:
+        vis_linkedin_resultat(st.session_state["linkedin_resultat"])
+
+
+# =====================================================================
 #  Agent-register — legg til nye agenter her
 # =====================================================================
 #
@@ -456,7 +579,7 @@ AGENTER = [
         "navn": "LinkedIn-Agent",
         "ikon": "✍️",
         "beskrivelse": "Skriver LinkedIn-poster i din stemme fra prosjektlogg, git og notater.",
-        "render": None,  # finnes som CLI (linkedin_agent.py) — web-grensesnitt kommer
+        "render": vis_linkedin_agent,
     },
 ]
 

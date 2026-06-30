@@ -9,3 +9,6 @@ venv/
 # OS
 Thumbs.db
 .DS_Store
+
+# Logger og test-artefakter
+*.log

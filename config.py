@@ -117,21 +117,32 @@ Planens kvalitet avhenger av at den er direkte forankret i research-funnene og a
 
 STANDARD_LINKEDIN_STIL = """Skrivestil for Patrick sine LinkedIn-poster:
 
-- TONE: Personlig, ærlig og nysgjerrig. Jeg deler reisen min med å lære meg
-  "vibe-code engineering" — altså å bygge ekte programvare sammen med AI-agenter
-  uten formell utviklerbakgrunn. Vis gjerne det rotete i midten, ikke bare seieren.
+- TONE: Engasjerende, men rolig. Profesjonell uten å bli stiv eller for formell.
+  Positiv og fremtidsrettet grunntone. Jeg deler reisen min med å lære meg
+  "vibe-code engineering" — å bygge ekte programvare sammen med AI-agenter — på en
+  måte som inviterer leseren med, ikke skryter. ALDRI banneord, ALDRI slang.
 - PERSPEKTIV: Førsteperson ("jeg"), snakker direkte til leseren ("du").
-- LENGDE: Mellomlang post (ca. 120-220 ord). Korte avsnitt, mye luft, ett poeng
-  per avsnitt. Lett å skumme på mobil.
-- ÅPNING: Start med en konkret, fengende hook — en overraskelse, en innrømmelse
-  eller et tall. Ikke "I dag vil jeg dele...".
-- INNHOLD: Konkret og jordnært. Bruk ekte detaljer fra prosjektet (hva som
-  faktisk skjedde, hvilken bug, hvilken aha-opplevelse). Unngå floskler og
-  buzzword-suppe.
-- EMOJI: Sparsomt og bevisst — gjerne 2-4 i hele posten, som visuelle ankre.
-- AVSLUTNING: Avslutt med en refleksjon eller et åpent spørsmål som inviterer
-  til kommentarer.
-- UNNGÅ: Salgssnakk, overdreven selvsikkerhet, "thought leader"-tone, hashtag-spam."""
+- LENGDE: Mellomlang post (ca. 120-220 ord). Korte men FLYTENDE avsnitt — to-tre
+  setninger som henger naturlig sammen, ikke hakkete. Mye luft. Lett å lese på mobil.
+- INGEN ETTORDSSETNINGER eller dramatiske enkeltord som virkemiddel. Hold flyten.
+- ÅPNING: Start med en konkret, engasjerende hook — en innsikt, en overraskelse
+  eller en ærlig observasjon. Ikke "I dag vil jeg dele...".
+- INNHOLD: Konkret og jordnært. Bruk ekte detaljer fra prosjektet (hva som faktisk
+  skjedde, hva jeg lærte). Vis gjerne det rotete i midten, men alltid med en positiv,
+  lærende vinkling. Unngå floskler og buzzword-suppe.
+- EMOJI: Enkelt og sparsomt — gjerne 1-3 i hele posten, som rolige visuelle ankre.
+  Ikke fargerikt emoji-show.
+- TEGNSETTING: Ellipser (...) kan brukes innimellom for å uttrykke skuffelse eller
+  at noe ikke gikk som planlagt. Bruk STORE BOKSTAVER for trykk svært sparsomt —
+  høyst ett ord i ny og ne, aldri flere ganger i samme post (det blir fort for mye
+  på LinkedIn). Som regel: la formuleringen bære trykket, ikke versalene.
+- AVSLUTNING: Avslutt med en refleksjon eller et åpent, vennlig spørsmål som
+  inviterer til kommentarer.
+- INNTRYKKET LESEREN SKAL SITTE IGJEN MED: "han gjør faktisk noe kult — kanskje
+  jeg kan lære noe av dette", og "fint at han tar steget mot å bli mer fremtidsrettet
+  med AI i sin bransje". Altså: inspirerende og tilgjengelig, aldri skrytete.
+- UNNGÅ: Salgssnakk, overdreven selvsikkerhet, bedreviter-tone, "thought leader"-
+  posering, hashtag-spam."""
 
 STANDARD_LINKEDIN_PROMPT = """Du er en skribent som skriver LinkedIn-poster i Patricks stemme.
 Tema for kontoen: Patricks reise i å lære seg "vibe-code engineering" — å bygge
@@ -192,6 +203,10 @@ class AgentConfig:
     prosjekt_logg_fil: str = "PROSJEKT.md"  # prosjektloggen agenten leser
     claude_logg_mappe: str = "claude_logg"  # mappe der du slipper notater fra Claude
     git_logg_antall: int = 15               # antall nylige commits som tas med
+    # Dine egne godkjente poster — agenten leser dem som stileksempler og lærer
+    # stemmen din over tid. Legg ferdig-redigerte poster (.md/.txt) her.
+    linkedin_godkjent_mappe: str = "linkedin/godkjent"
+    linkedin_godkjent_antall: int = 4       # maks antall eksempler som mates inn
 
     def __post_init__(self):
         # Planen bygger på analysen — den kan ikke kjøre uten.
