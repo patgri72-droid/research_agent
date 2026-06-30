@@ -180,7 +180,7 @@ class AgentConfig:
     research_max_tokens: int = 16000
     analyse_max_tokens: int = 8000
     plan_max_tokens: int = 8000
-    linkedin_max_tokens: int = 4000
+    linkedin_max_tokens: int = 6000  # rom for adaptiv tenking + tospråklig post i samme budsjett
 
     # Forskningsagentens verktøygrenser
     maks_sok: int = 10            # web_search max_uses

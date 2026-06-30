@@ -252,6 +252,23 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 - Merknad: Streamlit re-importerer ikke moduler ved nettleser-reload — restart serveren
   (Ctrl+C + `.\kjor_app.bat`) etter endringer i importerte filer (`run.py`/`config.py`/agenter).
 
+### 2026-06-30 (robusthet i forskningsloopen — teknisk gjeld utbedret)
+- **Loop kunne henge / brenne tokens ved uventet `stop_reason`:** `while True`-loopen i
+  `research_agent.py` håndterte bare `end_turn`/`pause_turn`/`tool_use`. Ved `max_tokens`
+  (for lang rapport) eller `refusal` traff ingen gren `break` → samtalen ble re-sendt i det
+  uendelige. **Fikset:** uventet `stop_reason` bryter nå loopen og beholder den (eventuelt
+  delvise) rapporten; tom rapport får en tydelig plassholdertekst.
+- **Ingen øvre grense på antall runder:** la til `maks_runder = maks_sok + maks_hentinger + 20`
+  som hard sikkerhetsvakt (skalerer med verktøybudsjettet). Hindrer evig loop også ved
+  vedvarende `pause_turn`.
+- **Verifisert med enhetstest (mocket Anthropic-klient):** `max_tokens` bryter etter 1 runde
+  og beholder delrapport; evig `pause_turn` stoppes av maks-runde-vakta. Første ekte test av
+  selve loop-logikken uten API-kall (jf. svakhet «kjernelogikken er utestet»).
+- Gjenstående kjente svakheter (ikke fikset): kostnadsestimatet teller ikke server-verktøyenes
+  egen pris (websøk faktureres separat); `notater` er en modul-global (ikke trådsikker ved
+  samtidige kjøringer); analyse/plan sjekker `stopp` kun ved start; `historikk.json` skrives
+  ikke-atomisk. Se egen gjennomgang i samtalehistorikken.
+
 ### 2026-06-11
 - **Kostnadsreduksjon:** Analyse- og planleggingsagent flyttet til `claude-sonnet-4-6`
   (forskningsagenten beholder Opus — der ligger kvaliteten). `web_fetch` begrenset til

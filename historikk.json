@@ -30,5 +30,16 @@
       "plan_md": "rapporter/2026-06-10_21-37_Hva_er_de_tre_beste_plassene_å_reise_for_plan.md",
       "pdf": "rapporter/2026-06-10_21-37_Hva_er_de_tre_beste_plassene_å_reise_for_rapport.pdf"
     }
+  },
+  {
+    "dato": "2026-06-30T14:06:03.186909",
+    "tema": "Hvilke verktøy er det beste for å genere videoer med bruk av AI. Jeg vil lage anonnse videoer for leiligheter, jeg trenger at videoene er realistiske og har mulighet til å gjøre en sammensetning av bilder om til en smooth og realistisk gjennomgang av leiligheten",
+    "filer": {
+      "research_md": "rapporter/2026-06-30_13-59_Hvilke_verktøy_er_det_beste_for_å_genere.md",
+      "research_json": "rapporter/2026-06-30_13-59_Hvilke_verktøy_er_det_beste_for_å_genere.json",
+      "analyse_json": "rapporter/2026-06-30_13-59_Hvilke_verktøy_er_det_beste_for_å_genere_analyse.json",
+      "plan_md": "rapporter/2026-06-30_13-59_Hvilke_verktøy_er_det_beste_for_å_genere_plan.md",
+      "pdf": "rapporter/2026-06-30_13-59_Hvilke_verktøy_er_det_beste_for_å_genere_rapport.pdf"
+    }
   }
 ]

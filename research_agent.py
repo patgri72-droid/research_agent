@@ -172,9 +172,22 @@ def kjor_research(tema: str, tidsstempel: str = None,
     system_blokker = [{"type": "text", "text": config.research_prompt,
                        "cache_control": {"type": "ephemeral"}}]
 
+    # Sikkerhetsvakt: aldri loop i det uendelige. Skalerer med verktøybudsjettet
+    # (hvert søk/henting kan kreve en runde) pluss en romslig buffer.
+    maks_runder = config.maks_sok + config.maks_hentinger + 20
+    runde = 0
+
     while True:
         if stopp is not None and stopp.is_set():
             raise KjoringStoppet()
+
+        runde += 1
+        if runde > maks_runder:
+            _meld(hendelse, t="status",
+                  tekst=f"Nådde maksgrensen på {maks_runder} runder — avslutter med det vi har.")
+            if hendelse is None:
+                print(f"  Maks runder ({maks_runder}) nådd — avslutter loopen.")
+            break
 
         sett_cache_punkt(meldinger)
         kall_kwargs = dict(
@@ -234,6 +247,20 @@ def kjor_research(tema: str, tidsstempel: str = None,
                         "content": json.dumps(resultat, ensure_ascii=False),
                     })
             meldinger.append({"role": "user", "content": resultater})
+            continue
+
+        # Uventet stoppårsak (f.eks. `max_tokens` ved for lang rapport, eller
+        # `refusal`). Ikke loop videre — det ville re-sendt samme samtale og
+        # brent tokens uten fremgang. Behold den (eventuelt delvise) rapporten.
+        _meld(hendelse, t="status",
+              tekst=f"Uventet stopp (stop_reason={respons.stop_reason}) — avslutter forskningen.")
+        if hendelse is None:
+            print(f"  Uventet stoppårsak: {respons.stop_reason} — avslutter loopen.")
+        break
+
+    if not endelig_rapport:
+        endelig_rapport = ("(Ingen rapport ble generert — kjøringen ble avbrutt, "
+                           "eller modellen svarte ikke som forventet.)")
 
     md_fil, json_fil = lagre_resultater(tema, endelig_rapport, notater, tidsstempel)
     _meld(hendelse, t="status", tekst=f"Forskningsagent ferdig — {len(notater)} notater")

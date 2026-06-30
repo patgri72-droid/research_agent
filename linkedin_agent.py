@@ -26,7 +26,8 @@ from config import AgentConfig, STANDARD_CONFIG
 
 load_dotenv()
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# SDK-en henter ANTHROPIC_API_KEY fra miljøet selv (lastet av load_dotenv over).
+client = anthropic.Anthropic()
 
 # --- Samle råmateriale ---
 
@@ -42,20 +43,30 @@ def hent_git_logg(antall: int) -> str:
         return "(git-historikk utilgjengelig)"
 
 
+def _les_mappe(mappe: str, nyeste_forst: bool = False):
+    """Yt (filnavn, innhold) for hver ikke-tomme .md/.txt-fil i mappa.
+
+    Felles skjelett for å lese tekstfiler — sorterer etter filnavn (sett
+    `nyeste_forst=True` for nyeste øverst) og hopper stille over filer som
+    ikke kan leses.
+    """
+    if not os.path.isdir(mappe):
+        return
+    for navn in sorted(os.listdir(mappe), reverse=nyeste_forst):
+        if not navn.lower().endswith((".md", ".txt")):
+            continue
+        try:
+            with open(os.path.join(mappe, navn), encoding="utf-8") as f:
+                tekst = f.read().strip()
+        except OSError:
+            continue
+        if tekst:
+            yield navn, tekst
+
+
 def les_tekstfiler(mappe: str) -> str:
     """Leser alle .md/.txt-filer i en mappe — dine notater fra Claude-økter."""
-    if not os.path.isdir(mappe):
-        return ""
-    biter = []
-    for navn in sorted(os.listdir(mappe)):
-        if navn.lower().endswith((".md", ".txt")):
-            sti = os.path.join(mappe, navn)
-            try:
-                with open(sti, encoding="utf-8") as f:
-                    biter.append(f"### Fil: {navn}\n{f.read().strip()}")
-            except OSError:
-                continue
-    return "\n\n".join(biter)
+    return "\n\n".join(f"### Fil: {navn}\n{tekst}" for navn, tekst in _les_mappe(mappe))
 
 
 def les_godkjente_poster(config: AgentConfig) -> str:
@@ -65,21 +76,13 @@ def les_godkjente_poster(config: AgentConfig) -> str:
     godkjenner og legger i mappa, jo nærmere treffer den din faktiske stil.
     Tar de nyeste først (etter filnavn) og begrenser til config-antallet.
     """
-    mappe = config.linkedin_godkjent_mappe
-    if not os.path.isdir(mappe):
-        return ""
-    filer = [n for n in sorted(os.listdir(mappe), reverse=True)
-             if n.lower().endswith((".md", ".txt"))
-             and not n.upper().startswith("LES_MEG")]
     biter = []
-    for navn in filer[: config.linkedin_godkjent_antall]:
-        try:
-            with open(os.path.join(mappe, navn), encoding="utf-8") as f:
-                tekst = f.read().strip()
-        except OSError:
+    for navn, tekst in _les_mappe(config.linkedin_godkjent_mappe, nyeste_forst=True):
+        if navn.upper().startswith("LES_MEG"):
             continue
-        if tekst:
-            biter.append(f"--- Eksempelpost ---\n{tekst}")
+        biter.append(f"--- Eksempelpost ---\n{tekst}")
+        if len(biter) >= config.linkedin_godkjent_antall:
+            break
     return "\n\n".join(biter)
 
 
@@ -189,7 +192,18 @@ Skriv LinkedIn-posten nå."""
         output_config={"format": {"type": "json_schema", "schema": POST_SKJEMA}},
     )
 
-    tekst = next(b.text for b in respons.content if b.type == "text")
+    # Gi tydelige feil i stedet for en kryptisk StopIteration / JSON-feil når
+    # svaret ikke er en komplett post.
+    if respons.stop_reason == "max_tokens":
+        raise RuntimeError(
+            "Svaret ble avkuttet før posten var ferdig (traff max_tokens). "
+            "Øk linkedin_max_tokens i config.py.")
+    if respons.stop_reason == "refusal":
+        raise RuntimeError("Modellen avslo forespørselen. Prøv en annen vinkling.")
+
+    tekst = next((b.text for b in respons.content if b.type == "text"), None)
+    if tekst is None:
+        raise RuntimeError("Fikk ingen tekst tilbake fra modellen.")
     resultat = json.loads(tekst)
     print(f"  Ferdig — \"{resultat['arbeidstittel']}\"")
     return resultat
@@ -220,8 +234,9 @@ def lagre_post(vinkling: str, resultat: dict, config: AgentConfig = None,
     if config is None:
         config = STANDARD_CONFIG
     os.makedirs("linkedin", exist_ok=True)
+    now = datetime.now()
     if ts is None:
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        ts = now.strftime("%Y-%m-%d_%H-%M")
     tittel = resultat.get("arbeidstittel", "post")[:40].replace(" ", "_")
     base = f"linkedin/{ts}_{tittel}"
 
@@ -237,13 +252,13 @@ def lagre_post(vinkling: str, resultat: dict, config: AgentConfig = None,
         for s in resultat.get("skjermbilde_forslag", []):
             f.write(f"- {s}\n")
         f.write(f"\n*Vinkling: {vinkling or '(agenten valgte selv)'}*\n")
-        f.write(f"*Generert: {datetime.now().strftime('%d.%m.%Y %H:%M')}*\n")
+        f.write(f"*Generert: {now.strftime('%d.%m.%Y %H:%M')}*\n")
 
     with open(f"{base}.json", "w", encoding="utf-8") as f:
-        json.dump({"vinkling": vinkling, "timestamp": datetime.now().isoformat(),
+        json.dump({"vinkling": vinkling, "timestamp": now.isoformat(),
                    **resultat}, f, ensure_ascii=False, indent=2)
 
-    print(f"\nLagret:")
+    print("\nLagret:")
     print(f"  Post:  {base}.md")
     print(f"  Data:  {base}.json")
     return f"{base}.md"

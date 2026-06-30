@@ -1,0 +1,34 @@
+{
+  "mønstre": [
+    "Markedet er tydelig segmentert i tre lag: dedikerte eiendomsverktøy (rask/enkel), generelle AI-videomodeller (høy realisme) og 3D/scanning-teknologi (høyest realisme, men krever filming). Brukerens behov passer best i midtsjiktet eller en kombinasjon av lag 1 og 2.",
+    "Det er et gjennomgående mønster at høyere realisme krever mer arbeid og/eller filming på stedet – det er ingen enkelt løsning som gir både «bilder inn, perfekt walkthrough ut» uten kompromiss.",
+    "Kling og Google Veo er konsistent fremhevet som de to sterkeste image-to-video-modellene på tvers av uavhengige tester, noe som styrker troverdigheten av denne anbefalingen.",
+    "Dedikerte eiendomsverktøy som PhotoAIVideo bruker primært pan/zoom på flate bilder, ikke ekte 3D-bevegelse – dette er en kritisk begrensning som rapporten nevner, men ikke understreker sterkt nok for en bruker som vil ha realistiske gjennomganger.",
+    "Gaussian Splatting representerer en teknologisk annen kategori enn resten – det krever fysisk filming og er ikke en 'bilder-til-video'-løsning, og bør derfor skilles tydeligere fra de andre alternativene."
+  ],
+  "nøkkelfakta": [
+    "Google Veo støtter start-/sluttbilde-teknikk som fyller bevegelse mellom to referansebilder – dette er direkte relevant for sømløse romoverganger i en leilighetsgjennomgang.",
+    "Kling 2.6 er anbefalt for polert, klientvendt arbeid som skal blande seg med live-action opptak, med sterk visuell konsistens på tvers av klipp.",
+    "PhotoAIVideo leverer ferdige videoer på ~5 minutter fra stillbilder med distribusjon mot norsk-relevante portaler (tilsvarende Zillow etc.), men bevegelsen er pan/zoom på flate bilder – ikke ekte 3D.",
+    "Styldod koster ca. 5 USD per video (30 sek), AutoReel fra ca. 15 USD/mnd – lavterskel prismodeller for skalerbar annonseproduksjon.",
+    "Gaussian Splatting (Luma, Polycam, Matterport) gir høyest realisme for walkthrough, men forutsetter filming av faktisk leilighet og er ikke en ren AI-fra-bilder-løsning.",
+    "Påstanden om 403% flere henvendelser ved videobruk kommer fra Styldod selv – en leverandør med åpenbar egeninteresse – og bør ikke brukes ukritisk som beslutningsgrunnlag."
+  ],
+  "usikkerhet": [
+    "Rangeringen av Veo vs. Kling varierer mellom kildene: invideo.io fremhever Veo for kamerabevegelse, mens artlist.io fremhever Kling for endelig kvalitet og konsistens. Begge kilder kan ha kommersielle interesser (affiliates/annonser).",
+    "Påstanden om 403% flere henvendelser ved videobruk er udokumentert og kommer fra en leverandør (Styldod) – ingen uavhengig kilde bekrefter dette tallet.",
+    "Prisene som oppgis (Styldod $5/video, AutoReel $15/mnd) er ikke verifisert mot gjeldende prissider og kan være utdaterte eller markedsføringspriser uten å inkludere alle kostnader.",
+    "Det er uklart hvorvidt Google Veo og Kling er tilgjengelig for norske brukere uten restriksjoner, og om grensesnittet/API-ene er tilgjengelige for ikke-tekniske brukere uten integrasjonsarbeid.",
+    "Rapporten hevder at Kling har 'Standard' og 'Professional' modus, men gir ikke konkrete kvalitetsforskjeller eller prisimplikasjoner mellom disse modiene."
+  ],
+  "kunnskapshull": [
+    "Ingen informasjon om faktiske norske/nordiske erfaringer med disse verktøyene – kulturelle og juridiske krav til eiendomsannonser i Norge er ikke vurdert.",
+    "Konkrete priser per video for Veo og Kling mangler – dette er kritisk for å vurdere kostnad ved skalerbar annonseproduksjon (mange leiligheter per måned).",
+    "Ingen sammenligning av outputkvalitet med konkrete eksempelvideoer fra leilighetsannonser – alle anbefalinger er basert på generelle AI-videotester, ikke eiendomsspesifikke.",
+    "Ukjent om de dedikerte eiendomsverktøyene støtter norsk tekst, norsk voiceover og norske annonseplattformer (Finn.no etc.) eller kun amerikanske portaler.",
+    "Ingen informasjon om hvilke bildekrav (oppløsning, vinkel, antall bilder) som gir best resultat i de ulike verktøyene – praktisk viktig for fotografiworkflowen.",
+    "Mangler vurdering av opphavsrett og eierskap til generert innhold – relevant for kommersiell annonseproduksjon i Norge."
+  ],
+  "grunnlag_styrke": "middels",
+  "sammendrag": "Kunnskapsgrunnlaget gir et godt strukturert overblikk over tre distinkte teknologiske tilnærminger, og kjernekonklusjonen – at Kling og Google Veo er de sterkeste image-to-video-alternativene for realistiske gjennomganger – støttes av to uavhengige tester. Det kritiske svakhetspunktet er at ingen av kildene tester verktøyene spesifikt på leilighetsannonser, og rapporten mangler konkrete priser, norsk plattformkompatibilitet og opphavsrettslige vurderinger. Påstanden om 403% flere henvendelser bør ignoreres som beslutningsgrunnlag da den kommer fra en leverandør med egeninteresse. For en bruker som vil gå fra stillbilder til smooth walkthrough uten filming, er den reelle praktiske begrensningen at dedikerte eiendomsverktøy gir pan/zoom (ikke ekte 3D-bevegelse), mens Kling/Veo gir høyere realisme men krever mer teknisk kompetanse og har ukjente kostnader ved volumproduksjon."
+}

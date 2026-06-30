@@ -143,6 +143,32 @@ st.markdown("""
     .agent-boble .ikon { font-size: 3rem; line-height: 1; }
     .agent-boble .navn { font-size: 1.25rem; font-weight: 700; margin-top: 0.4rem; }
     .agent-boble .beskr { color: #9aa0b4; font-size: 0.85rem; min-height: 2.4rem; }
+
+    /* Tema-boksen bryter linja og vokser nedover i stedet for å renne ut av skjermen */
+    .st-key-tema_input textarea {
+        field-sizing: content !important;
+        min-height: 2rem !important;
+        height: auto !important;
+        max-height: 30vh;
+        line-height: 1.35;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+        resize: none;
+        overflow-y: auto;
+    }
+
+    /* Liten søkeknapp: rød når boksen er tom, grønn når et tema er klart */
+    .st-key-sok_tom button,
+    .st-key-sok_klar button {
+        border: none !important;
+        color: #fff !important;
+        font-weight: 600;
+        opacity: 1 !important;
+    }
+    .st-key-sok_tom button { background-color: #c0392b !important; }
+    .st-key-sok_tom button:hover { background-color: #a83226 !important; }
+    .st-key-sok_klar button { background-color: #27ae60 !important; }
+    .st-key-sok_klar button:hover { background-color: #1f9551 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -410,21 +436,25 @@ def vis_research_agent():
     if "tema_input" not in st.session_state:
         st.session_state["tema_input"] = ""
 
-    tema = st.text_input(
+    tema = st.text_area(
         "Tema",
         placeholder="Hva vil du forske på?",
         key="tema_input",
         label_visibility="collapsed",
     )
 
-    c_start, c_demo = st.columns([2, 1])
-    with c_start:
-        if st.button("Start forskning", type="primary", disabled=not tema.strip(),
-                     use_container_width=True) and tema.strip():
+    har_tema = bool(tema.strip())
+    # Knappen bytter nøkkel etter om boksen har tekst — det styrer fargen
+    # (rød = tom, grønn = klar) via CSS-klassene .st-key-sok_tom/.st-key-sok_klar.
+    sok_key = "sok_klar" if har_tema else "sok_tom"
+
+    c_sok, c_demo, _ = st.columns([1, 1.4, 4])
+    with c_sok:
+        if st.button("🔍 Søk", key=sok_key, disabled=not har_tema):
             start_kjoring(tema.strip(), config)
             st.rerun()
     with c_demo:
-        if st.button("▶ Demo (uten søk)", use_container_width=True,
+        if st.button("▶ Demo", key="demo_knapp",
                      help="Viser hele live-grensesnittet uten ekte søk, API-kall eller kostnad."):
             start_kjoring(tema.strip() or "Demoemne: fornybar energi i Norge",
                           config, kjorefunksjon=kjor_demo, demo=True)
