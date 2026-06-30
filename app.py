@@ -144,8 +144,9 @@ st.markdown("""
     .agent-boble .navn { font-size: 1.25rem; font-weight: 700; margin-top: 0.4rem; }
     .agent-boble .beskr { color: #9aa0b4; font-size: 0.85rem; min-height: 2.4rem; }
 
-    /* Tema-boksen bryter linja og vokser nedover i stedet for å renne ut av skjermen */
-    .st-key-tema_input textarea {
+    /* Skrivefeltene bryter linja og vokser nedover i stedet for å renne ut av skjermen */
+    .st-key-tema_input textarea,
+    .st-key-vinkling_input textarea {
         field-sizing: content !important;
         min-height: 2rem !important;
         height: auto !important;
@@ -586,14 +587,23 @@ def vis_linkedin_resultat(data: dict):
 def vis_linkedin_agent():
     std = AgentConfig()
 
-    # --- Sidepanel ---
+    # --- Sidepanel: navigasjon (innstillinger er flyttet til hovedområdet) ---
     with st.sidebar:
         if st.button("← Tilbake til hub", use_container_width=True):
             gaa_til(None)
         st.markdown("## LinkedIn-Agent")
-        st.markdown("---")
 
-        st.markdown("### Innstillinger")
+    # --- Hovedinnhold ---
+    st.title("LinkedIn-Agent")
+    st.caption("Skriver en ferdig LinkedIn-post i din stemme fra prosjektlogg, "
+               "git-historikk og notatene dine.")
+
+    col_input, col_innst = st.columns([3, 2], gap="large")
+
+    # Innstillingene ligger til høyre der det er god plass. De bygges først så
+    # `config` er klar når «Skriv post» i venstre kolonne trenger den.
+    with col_innst:
+        st.markdown("#### Innstillinger")
         sprak = st.radio("Språk", SPRAK_VALG, index=SPRAK_VALG.index(std.linkedin_sprak),
                          format_func=lambda k: SPRAK_TEKST[k])
         linkedin_modell = velg_modell("Modell", std.linkedin_modell, "m_linkedin")
@@ -603,44 +613,41 @@ def vis_linkedin_agent():
             stil = st.text_area("Stil", value=std.linkedin_stil, height=260,
                                 label_visibility="collapsed")
 
-    config = AgentConfig(
-        linkedin_sprak=sprak,
-        linkedin_modell=linkedin_modell,
-        linkedin_stil=stil.strip() or std.linkedin_stil,
-    )
+        config = AgentConfig(
+            linkedin_sprak=sprak,
+            linkedin_modell=linkedin_modell,
+            linkedin_stil=stil.strip() or std.linkedin_stil,
+        )
 
-    # Hvor mange godkjente stileksempler er lastet?
-    eksempler = la.les_godkjente_poster(config)
-    antall_eks = eksempler.count("--- Eksempelpost ---") if eksempler else 0
-    with st.sidebar:
-        st.markdown("---")
+        # Hvor mange godkjente stileksempler er lastet?
+        eksempler = la.les_godkjente_poster(config)
+        antall_eks = eksempler.count("--- Eksempelpost ---") if eksempler else 0
         if antall_eks:
             st.caption(f"📚 {antall_eks} godkjente stileksempler i bruk — agenten matcher stemmen din.")
         else:
             st.caption("📭 Ingen godkjente eksempler ennå. Trykk «Lagre som godkjent» "
                        "på en post du liker, så lærer agenten stemmen din over tid.")
 
-    # --- Hovedinnhold ---
-    st.title("LinkedIn-Agent")
-    st.caption("Skriver en ferdig LinkedIn-post i din stemme fra prosjektlogg, "
-               "git-historikk og notatene dine.")
+    with col_input:
+        vinkling = st.text_area(
+            "Vinkling",
+            placeholder="Hva skal posten handle om? (la stå tom så velger agenten selv)",
+            key="vinkling_input",
+            label_visibility="collapsed",
+        )
 
-    vinkling = st.text_input(
-        "Vinkling",
-        placeholder="Hva skal posten handle om? (la stå tom så velger agenten selv)",
-        label_visibility="collapsed",
-    )
-
-    if st.button("Skriv post", type="primary", use_container_width=True):
-        with st.spinner("LinkedIn-agenten skriver…"):
-            try:
-                resultat = la.kjor_linkedin(vinkling.strip(), config)
-                sti = la.lagre_post(vinkling.strip(), resultat, config)
-                st.session_state["linkedin_resultat"] = {
-                    "resultat": resultat, "config": config, "sti": sti,
-                }
-            except Exception as e:  # noqa: BLE001
-                st.error(f"Feil under generering: {e}")
+        c_skriv, _ = st.columns([1, 2])
+        with c_skriv:
+            if st.button("✍️ Skriv post", type="primary"):
+                with st.spinner("LinkedIn-agenten skriver…"):
+                    try:
+                        resultat = la.kjor_linkedin(vinkling.strip(), config)
+                        sti = la.lagre_post(vinkling.strip(), resultat, config)
+                        st.session_state["linkedin_resultat"] = {
+                            "resultat": resultat, "config": config, "sti": sti,
+                        }
+                    except Exception as e:  # noqa: BLE001
+                        st.error(f"Feil under generering: {e}")
 
     if "linkedin_resultat" in st.session_state:
         vis_linkedin_resultat(st.session_state["linkedin_resultat"])
