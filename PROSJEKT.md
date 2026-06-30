@@ -207,6 +207,25 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 
 ## Endringslogg
 
+### 2026-06-30 (grensesnitt-forbedringer)
+- **Skrivefeltene vokser nedover i stedet for å renne ut av skjermen:** `st.text_input`
+  byttet til `st.text_area` for både tema (research) og vinkling (LinkedIn), med CSS
+  `field-sizing: content` (min-høyde ~1 linje, maks 30vh). Bryter linja og vokser ved
+  behov. Krever nyere Chromium (Chrome/Edge 123+).
+- **Liten rød→grønn søkeknapp i Research-agenten:** den brede «Start forskning»-baren
+  (`use_container_width=True`) erstattet med en kompakt «🔍 Søk»-knapp. Fargen styres ved
+  at knappen bytter `key` (`sok_tom`/`sok_klar`) etter om boksen har tekst — CSS-klassene
+  `.st-key-sok_tom`/`.st-key-sok_klar` gir rød (tom) / grønn (klar). Demo-knappen krympet
+  tilsvarende. Merk: i et flerlinjet felt sender vanlig Enter en ny linje; fargen slår om
+  når teksten bekreftes (Ctrl+Enter / klikk ut) — en Streamlit-begrensning (vokse vs.
+  Enter-send er gjensidig utelukkende).
+- **Innstillinger flyttet fra sidepanelet til hovedområdet** for begge agentene: en
+  høyrekolonne (`st.columns([3, 2])`) holder innstillingene mens søkeboksen ligger til
+  venstre. Sidepanelet er nå lett — Research beholder «Tidligere søk», LinkedIn bare
+  navigasjon. `config` bygges i høyrekolonnen før venstrekolonnens knapp bruker den.
+  Stiler en spesifikk widget via `.st-key-<key>`-klassen (Streamlit 1.58).
+- Commit `f4051c7` på `main` (kun `app.py`). Ikke pushet.
+
 ### 2026-06-10
 - Omdøpt `agent.py` → `research_agent.py`, oppdatert import i `run.py`
 - Fjernet dobbel "AGENT-TEAM STARTER"-linje; forkortet søke-prompten
