@@ -1,5 +1,7 @@
 import os
 import queue
+import re
+import subprocess
 import sys
 import threading
 import time
@@ -546,6 +548,74 @@ def _lagre_godkjent(resultat: dict, config: AgentConfig) -> str:
     return sti
 
 
+# --- Sky-varig stemme: auto-push av godkjente eksempler til GitHub ---
+#
+# I skyen er disken flyktig, så et nytt godkjent stileksempel forsvinner ved
+# restart. Med en GITHUB_TOKEN-secret committer og pusher vi eksempelet til
+# repoet så det overlever (og følger med neste deploy). Uten token (typisk
+# lokalt) hoppes pushen over — filen er uansett lagret lokalt, og du committer
+# selv som vanlig. NB: en push trigger en re-deploy/omstart av Streamlit-appen.
+
+def _github_token() -> str | None:
+    try:
+        if "GITHUB_TOKEN" in st.secrets:
+            return st.secrets["GITHUB_TOKEN"]
+    except Exception:
+        pass
+    return os.getenv("GITHUB_TOKEN")
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+
+
+def _skjul(tekst: str, token: str) -> str:
+    """Fjerner tokenet fra tekst før den vises/logges."""
+    return (tekst or "").replace(token, "***").strip()
+
+
+def push_godkjent_til_github(sti: str) -> tuple[bool, str]:
+    """Committer og pusher én godkjent-fil til GitHub. Returnerer (ok, melding).
+    Token hentes fra st.secrets/miljø; uten token gjøres ingenting."""
+    token = _github_token()
+    if not token:
+        return False, ("Lagret lokalt. Sett en GITHUB_TOKEN-secret for at "
+                       "godkjenning i skyen skal bli varig.")
+
+    sti = sti.replace(os.sep, "/")
+
+    r = _git("remote", "get-url", "origin")
+    if r.returncode != 0:
+        return False, "Fant ingen 'origin'-remote å pushe til."
+    m = re.search(r"github\.com[/:]+([^/]+/[^/.\s]+)", r.stdout.strip())
+    if not m:
+        return False, "Klarte ikke tolke GitHub-remoten."
+    repo = m.group(1)
+    auth_url = f"https://x-access-token:{token}@github.com/{repo}.git"
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "main"
+
+    # Skyen har ingen git-identitet konfigurert
+    _git("config", "user.email", "linkedin-agent@sky.local")
+    _git("config", "user.name", "LinkedIn-agent (sky)")
+
+    add = _git("add", sti)
+    if add.returncode != 0:
+        return False, _skjul(add.stderr, token)
+    # Bare denne filen (pathspec) — feier ikke med andre stagede endringer
+    melding = f"LinkedIn: nytt godkjent stileksempel ({os.path.basename(sti)})"
+    commit = _git("commit", "-m", melding, "--", sti)
+    if commit.returncode != 0:
+        if "nothing to commit" in (commit.stdout + commit.stderr):
+            return False, "Ingen endring å committe (eksempelet var allerede lagret)."
+        return False, _skjul(commit.stderr or commit.stdout, token)
+    push = _git("push", auth_url, f"HEAD:refs/heads/{branch}")
+    if push.returncode != 0:
+        return False, "Push feilet: " + _skjul(push.stderr, token)
+    return True, (f"Pushet til GitHub ({repo}, {branch}) — eksempelet overlever "
+                  "sky-restart. Appen kan re-deploye om et lite øyeblikk.")
+
+
 def vis_linkedin_resultat(data: dict):
     """Viser en ferdig generert post med kopierbar tekst og lagre-knapp."""
     resultat = data["resultat"]
@@ -569,6 +639,8 @@ def vis_linkedin_resultat(data: dict):
                      help="Legger posten i godkjent-mappa så agenten matcher stilen neste gang."):
             sti = _lagre_godkjent(resultat, config)
             st.success(f"Lagret som stileksempel: {sti}")
+            ok, melding = push_godkjent_til_github(sti)
+            (st.success if ok else st.info)(("☁ " if ok else "ℹ ") + melding)
 
     bilder = resultat.get("bilde_prompter", [])
     if bilder:
@@ -584,19 +656,123 @@ def vis_linkedin_resultat(data: dict):
                 st.markdown(f"- {s}")
 
 
+def start_linkedin(vinkling: str, config: AgentConfig):
+    """Kjører LinkedIn-genereringen i en bakgrunnstråd så UI-et ikke fryser.
+    Én API-kall uten mellomsteg — tråden legger resultat/feil på en kø.
+
+    Merk: selve API-kallet kan ikke avbrytes underveis. «Avbryt» setter et
+    stopp-signal; tråden fullfører kallet, men hopper over lagring og forkaster
+    resultatet (Anthropic kan likevel fakturere det påbegynte kallet)."""
+    ko = queue.Queue()
+    stopp = threading.Event()
+    ts = time.strftime("%Y-%m-%d_%H-%M")
+
+    def arbeid():
+        try:
+            resultat = la.kjor_linkedin(vinkling, config)
+            if stopp.is_set():
+                ko.put({"t": "avbrutt"})
+                return
+            sti = la.lagre_post(vinkling, resultat, config, ts)
+            ko.put({"t": "ferdig", "resultat": resultat, "sti": sti})
+        except Exception as e:  # noqa: BLE001 — tråden må aldri dø stille
+            ko.put({"t": "feil", "melding": str(e)})
+
+    traad = threading.Thread(target=arbeid, daemon=True)
+    traad.start()
+    st.session_state["linkedin_kjoring"] = {
+        "kø": ko, "traad": traad, "stopp": stopp,
+        "vinkling": vinkling, "config": config, "start": time.time(),
+    }
+
+
+def vis_linkedin_kjoring(kj: dict):
+    """Venteskjerm mens LinkedIn-agenten skriver, med en Avbryt-knapp."""
+    st.subheader("✍️ LinkedIn-agenten skriver…")
+
+    # Avbryt UTENFOR fragmentet (full app-rerun) så den alltid er klikkbar
+    if st.button("⏹ Avbryt", type="secondary"):
+        kj["stopp"].set()
+        st.session_state["linkedin_kjoring"] = None
+        st.session_state["linkedin_melding"] = (
+            "warning",
+            "Avbrutt — posten forkastes når kallet er ferdig "
+            "(et påbegynt API-kall kan likevel bli fakturert).")
+        st.rerun()
+
+    @st.fragment(run_every=1.0)
+    def live():
+        kj = st.session_state.get("linkedin_kjoring")
+        if kj is None:
+            return
+        try:
+            ev = kj["kø"].get_nowait()
+        except queue.Empty:
+            ev = None
+
+        forløpt = int(time.time() - kj["start"])
+        st.markdown(f"⏱ {forløpt}s — genererer post…")
+
+        if ev is None:
+            return
+        if ev["t"] == "ferdig":
+            st.session_state["linkedin_resultat"] = {
+                "resultat": ev["resultat"], "config": kj["config"], "sti": ev["sti"],
+            }
+            st.session_state["linkedin_kjoring"] = None
+            st.rerun(scope="app")
+        elif ev["t"] == "feil":
+            st.session_state["linkedin_kjoring"] = None
+            st.session_state["linkedin_melding"] = ("error", f"Feil under generering: {ev['melding']}")
+            st.rerun(scope="app")
+        elif ev["t"] == "avbrutt":
+            st.session_state["linkedin_kjoring"] = None
+            st.rerun(scope="app")
+
+    live()
+
+
 def vis_linkedin_agent():
     std = AgentConfig()
 
-    # --- Sidepanel: navigasjon (innstillinger er flyttet til hovedområdet) ---
+    # --- Sidepanel: navigasjon + tidligere poster ---
     with st.sidebar:
         if st.button("← Tilbake til hub", use_container_width=True):
             gaa_til(None)
         st.markdown("## LinkedIn-Agent")
 
+        poster = la.last_lagrede_poster()
+        if poster:
+            st.markdown("---")
+            st.markdown("**Tidligere poster**")
+            st.caption("Klikk for å åpne uten å generere på nytt")
+            for p in poster[:8]:
+                dato = p["timestamp"][:10]
+                tittel = p["arbeidstittel"]
+                label = tittel[:38] + ("..." if len(tittel) > 38 else "")
+                if st.button(f"{label}\n_{dato}_", key=f"lipost_{p['sti']}",
+                             use_container_width=True):
+                    st.session_state["linkedin_resultat"] = {
+                        "resultat": p["resultat"], "config": AgentConfig(), "sti": p["sti"],
+                    }
+                    st.rerun()
+
     # --- Hovedinnhold ---
     st.title("LinkedIn-Agent")
     st.caption("Skriver en ferdig LinkedIn-post i din stemme fra prosjektlogg, "
                "git-historikk og notatene dine.")
+
+    # Pågår en generering? Vis venteskjerm med Avbryt — ikke input/resultat.
+    kjoring = st.session_state.get("linkedin_kjoring")
+    if kjoring is not None:
+        vis_linkedin_kjoring(kjoring)
+        return
+
+    # Melding fra forrige kjøring (avbrutt / feil)
+    melding = st.session_state.pop("linkedin_melding", None)
+    if melding:
+        nivaa, tekst = melding
+        getattr(st, nivaa)(tekst)
 
     col_input, col_innst = st.columns([3, 2], gap="large")
 
@@ -639,15 +815,8 @@ def vis_linkedin_agent():
         c_skriv, _ = st.columns([1, 2])
         with c_skriv:
             if st.button("✍️ Skriv post", type="primary"):
-                with st.spinner("LinkedIn-agenten skriver…"):
-                    try:
-                        resultat = la.kjor_linkedin(vinkling.strip(), config)
-                        sti = la.lagre_post(vinkling.strip(), resultat, config)
-                        st.session_state["linkedin_resultat"] = {
-                            "resultat": resultat, "config": config, "sti": sti,
-                        }
-                    except Exception as e:  # noqa: BLE001
-                        st.error(f"Feil under generering: {e}")
+                start_linkedin(vinkling.strip(), config)
+                st.rerun()
 
     if "linkedin_resultat" in st.session_state:
         vis_linkedin_resultat(st.session_state["linkedin_resultat"])

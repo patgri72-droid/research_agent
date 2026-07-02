@@ -260,6 +260,35 @@ def lagre_post(vinkling: str, resultat: dict, config: AgentConfig = None,
     print(f"  Data:  {base}.json")
     return f"{base}.md"
 
+
+def last_lagrede_poster(mappe: str = "linkedin") -> list[dict]:
+    """Lister tidligere lagrede poster (nyeste først) fra .json-filene i mappa.
+
+    Leser kun fra disk — ingen API-kall. Brukes av nettsiden til å gjenåpne en
+    post uten å generere den på nytt. Ser bare på filene direkte i `mappe`
+    (ikke undermappa `godkjent/`)."""
+    if not os.path.isdir(mappe):
+        return []
+    poster = []
+    for navn in os.listdir(mappe):
+        if not navn.endswith(".json"):
+            continue
+        sti_json = os.path.join(mappe, navn)
+        try:
+            with open(sti_json, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        poster.append({
+            "sti": sti_json[:-5] + ".md",   # .md-filen (til nedlasting/visning)
+            "arbeidstittel": data.get("arbeidstittel", navn),
+            "vinkling": data.get("vinkling", ""),
+            "timestamp": data.get("timestamp", ""),
+            "resultat": data,               # inneholder post_norsk/engelsk, hashtags, osv.
+        })
+    poster.sort(key=lambda p: p["timestamp"], reverse=True)
+    return poster
+
 # --- Kjør direkte ---
 
 if __name__ == "__main__":

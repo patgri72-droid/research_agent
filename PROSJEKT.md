@@ -160,9 +160,11 @@ trygt og kostnadskontrollert. Ikke en ny agent-funksjon — et **deploy- og tilg
    - **(c) Ekstern lagring** — gratis DB (Supabase/Google Sheets). Mest robust, mest arbeid.
 
 4. **Deploy** — repoet ligger allerede på privat GitHub (`origin`). På share.streamlit.io:
-   «New app» → velg repo + branch + `app.py` → legg `ANTHROPIC_API_KEY` og `APP_PASSORD`
-   inn under app-ets **Secrets**. Verifiser at `requirements.txt` er komplett
-   (`anthropic`, `python-dotenv`, `streamlit`, `fpdf2`).
+   «New app» → velg repo + branch + `app.py` → legg `ANTHROPIC_API_KEY`, `APP_PASSORD` og
+   (valgfritt) `GITHUB_TOKEN` inn under app-ets **Secrets**. `GITHUB_TOKEN` (fine-grained PAT
+   med `contents: write`) lar LinkedIn-agenten auto-pushe godkjente stileksempler så stemmen
+   overlever restart — se 2026-07-02 i endringsloggen. Verifiser at `requirements.txt` er
+   komplett (`anthropic`, `python-dotenv`, `streamlit`, `fpdf2`).
 
 5. **Robusthet + kostnadskontroll i skyen** — test lange kjøringer mot skyens
    inaktivitets-timeout (bakgrunnstråd + `st.fragment` fungerer, men en kjøring kan kollidere
@@ -206,6 +208,28 @@ skråstrek (`rapporter\fil`), mens historikken bruker vanlig skråstrek
 ---
 
 ## Endringslogg
+
+### 2026-07-02 (LinkedIn-agent: parity + sky-varig stemme)
+- **«Tidligere poster» i LinkedIn-UI-et:** ny `la.last_lagrede_poster()` leser `.json`-filene
+  i `linkedin/` (nyeste først, uten API-kall). Sidepanelet viser dem som klikkbare kort som
+  gjenåpner posten via `vis_linkedin_resultat` — samme mønster som research-historikken.
+- **Ikke-blokkerende generering med Avbryt:** LinkedIn kjører nå i en bakgrunnstråd
+  (`start_linkedin` + `queue.Queue` + `st.fragment(run_every=1.0)`), så UI-et ikke fryser.
+  «⏹ Avbryt» setter et stopp-signal; tråden fullfører selve API-kallet (kan ikke avbrytes
+  midt i), men hopper over lagring og forkaster resultatet. Speiler research-arkitekturen,
+  men enklere (ett kall, ingen mellom-hendelser). **Bevisst utelatt:** kostnadsestimat.
+- **Sky-varig stemme (auto-push av godkjente eksempler):** `push_godkjent_til_github()` i
+  `app.py` committer + pusher et nytt godkjent stileksempel til GitHub når en `GITHUB_TOKEN`-
+  secret finnes. Da overlever «lær stemmen min» sky-restart (flyktig disk). Uten token (lokalt)
+  hoppes push over — filen lagres lokalt og committes manuelt som før. Tokenet skjules i all
+  feiltekst; commit bruker pathspec (`git commit -- <fil>`) så bare den ene fila tas med.
+  **Bivirkning:** en push trigger en re-deploy/omstart av Streamlit-appen (samme reboot-adferd
+  som ved secret-endring). `linkedin/godkjent/` er sporet i repoet, så eksisterende eksempler
+  følger uansett med hver deploy.
+- Ny secret å sette i Streamlit Cloud: **`GITHUB_TOKEN`** (fine-grained PAT med `contents: write`
+  på repoet). Uten den er LinkedIn-godkjenning i skyen kun for økten.
+- Verifisert headless (`AppTest`): LinkedIn-siden rendrer, «Tidligere poster» viser lagrede
+  poster, gjenåpning laster fra disk uten API-kall. Remote-parsing + no-token-fallback testet.
 
 ### 2026-06-30 (grensesnitt-forbedringer)
 - **Skrivefeltene vokser nedover i stedet for å renne ut av skjermen:** `st.text_input`
